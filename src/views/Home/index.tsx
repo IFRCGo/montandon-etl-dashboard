@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 
 import { wrappedRoutes } from '../../App/routes';
 
-import styles from './styles.module.css';
+import styles from './index.module.css';
 
 // FIXME: import is weird will full names
 

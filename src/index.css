@@ -27,6 +27,8 @@
     -webkit-text-size-adjust: 100%;
 }
 
+
+/* stylelint-disable-next-line plugin/no-unused-selectors */
 #webapp-root {
     margin: 0 auto;
     padding: 2rem;

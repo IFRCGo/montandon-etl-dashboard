@@ -1,6 +1,7 @@
 module.exports = {
     plugins: [
-        'stylelint-value-no-unknown-custom-properties',
+        'stylelint-no-unused-selectors',
+        'stylelint-value-no-unknown-custom-properties'
     ],
     extends: [
         'stylelint-config-recommended',
@@ -8,6 +9,12 @@ module.exports = {
     ],
     rules: {
         indentation: 4,
+        'plugin/no-unused-selectors': {
+            "suffixesToStrip": [".module"],
+            "documents": [
+                "{cssDir}/{cssName}.tsx",
+            ],
+        },
         'csstools/value-no-unknown-custom-properties': [
             true, {
                 importFrom: ['./src/index.css']

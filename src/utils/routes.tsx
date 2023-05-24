@@ -35,55 +35,55 @@ export function joinUrlPart(parts: string[]) {
 type ImmutableRouteKey = 'lazy' | 'caseSensitive' | 'path' | 'id' | 'index' | 'children';
 
 type OmitInputRouteObjectKeys = 'Component' | 'element' | 'lazy';
-type MyInputIndexRouteObject<T> = {
+export type MyInputIndexRouteObject<T, K extends object> = {
     title: string;
     componentProps: T & JSX.IntrinsicAttributes;
     component: () => Promise<{
         Component: (props: T) => React.ReactElement<any, any> | null;
     } & Omit<IndexRouteObject, ImmutableRouteKey | OmitInputRouteObjectKeys>>;
-    parent?: MyOutputRouteObject;
-} & Omit<IndexRouteObject, OmitInputRouteObjectKeys>;
+    parent?: MyOutputRouteObject<K>;
+} & Omit<IndexRouteObject, OmitInputRouteObjectKeys> & K;
 
-type MyInputNonIndexRouteObject<T> = {
+export type MyInputNonIndexRouteObject<T, K extends object> = {
     title: string;
     componentProps: T & JSX.IntrinsicAttributes;
     component: () => Promise<{
         Component: (props: T) => React.ReactElement<any, any> | null;
     } & Omit<IndexRouteObject, ImmutableRouteKey | OmitInputRouteObjectKeys>>;
-    parent?: MyOutputRouteObject;
-} & Omit<NonIndexRouteObject, OmitInputRouteObjectKeys>;
+    parent?: MyOutputRouteObject<K>;
+} & Omit<NonIndexRouteObject, OmitInputRouteObjectKeys> & K;
 
-type MyInputRouteObject<T> = (
-    MyInputIndexRouteObject<T> | MyInputNonIndexRouteObject<T>
+export type MyInputRouteObject<T, K extends object> = (
+    MyInputIndexRouteObject<T, K> | MyInputNonIndexRouteObject<T, K>
 );
 
 type OmitOutputRouteObjectKeys = 'Component' | 'element';
 
-type MyOutputIndexRouteObject = {
+export type MyOutputIndexRouteObject<K extends object> = {
     id: string;
     absolutePath: string;
-    parent?: MyOutputRouteObject;
-} & Omit<IndexRouteObject, OmitOutputRouteObjectKeys>;
+    parent?: MyOutputRouteObject<K>;
+} & Omit<IndexRouteObject, OmitOutputRouteObjectKeys> & K;
 
-type MyOutputNonIndexRouteObject = {
+export type MyOutputNonIndexRouteObject<K extends object> = {
     id: string;
     absolutePath: string;
-    parent?: MyOutputRouteObject;
-} & Omit<NonIndexRouteObject, OmitOutputRouteObjectKeys>;
+    parent?: MyOutputRouteObject<K>;
+} & Omit<NonIndexRouteObject, OmitOutputRouteObjectKeys> & K;
 
-type MyOutputRouteObject = (
-    MyOutputIndexRouteObject | MyOutputNonIndexRouteObject
+export type MyOutputRouteObject<K extends object> = (
+    MyOutputIndexRouteObject<K> | MyOutputNonIndexRouteObject<K>
 );
 
-export function wrapRoute<T>(
-    myRouteOptions: MyInputIndexRouteObject<T>
-): MyOutputIndexRouteObject
-export function wrapRoute<T>(
-    myRouteOptions: MyInputNonIndexRouteObject<T>
-): MyOutputNonIndexRouteObject
-export function wrapRoute<T>(
-    myRouteOptions: MyInputRouteObject<T>,
-): MyOutputRouteObject {
+export function wrapRoute<K extends object, T>(
+    myRouteOptions: MyInputIndexRouteObject<T, K>
+): MyOutputIndexRouteObject<K>
+export function wrapRoute<K extends object, T>(
+    myRouteOptions: MyInputNonIndexRouteObject<T, K>
+): MyOutputNonIndexRouteObject<K>
+export function wrapRoute<K extends object, T>(
+    myRouteOptions: MyInputRouteObject<T, K>,
+): MyOutputRouteObject<K> {
     if (myRouteOptions.index) {
         const {
             componentProps,
@@ -144,7 +144,9 @@ export function wrapRoute<T>(
     };
 }
 
-export function unwrapRoute(wrappedRoutes: MyOutputRouteObject[]): RouteObject[] {
+export function unwrapRoute<K extends object>(
+    wrappedRoutes: MyOutputRouteObject<K>[],
+): RouteObject[] {
     const mapping = listToMap(
         wrappedRoutes.filter((item) => !item.index),
         (item) => item.id,

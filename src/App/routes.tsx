@@ -1,8 +1,34 @@
-import { wrapRoute, unwrapRoute } from '#utils/routes';
+import {
+    wrapRoute,
+    unwrapRoute,
+} from '#utils/routes';
+import type {
+    MyInputRouteObject,
+    MyInputIndexRouteObject,
+    MyInputNonIndexRouteObject,
+    MyOutputIndexRouteObject,
+    MyOutputNonIndexRouteObject,
+    MyOutputRouteObject,
+} from '#utils/routes';
 
 import PageError from './PageError';
 
-const root = wrapRoute({
+// NOTE: setting default ExtendedProps
+type ExtendedProps = { name?: string };
+interface MyWrapRoute {
+    <T>(
+        myRouteOptions: MyInputIndexRouteObject<T, ExtendedProps>
+    ): MyOutputIndexRouteObject<ExtendedProps>
+    <T>(
+        myRouteOptions: MyInputNonIndexRouteObject<T, ExtendedProps>
+    ): MyOutputNonIndexRouteObject<ExtendedProps>
+    <T>(
+        myRouteOptions: MyInputRouteObject<T, ExtendedProps>,
+    ): MyOutputRouteObject<ExtendedProps>
+}
+const myWrapRoute: MyWrapRoute = wrapRoute;
+
+const root = myWrapRoute({
     title: '',
     path: '/',
     component: () => import('#views/Root'),
@@ -10,7 +36,7 @@ const root = wrapRoute({
     errorElement: <PageError />,
 });
 
-const home = wrapRoute({
+const home = myWrapRoute({
     title: 'Home',
     index: true,
     component: () => import('#views/Home'),
@@ -18,7 +44,7 @@ const home = wrapRoute({
     parent: root,
 });
 
-const preferences = wrapRoute({
+const preferences = myWrapRoute({
     title: 'Preferences',
     path: 'preferences',
     component: () => import('#views/Preferences'),
