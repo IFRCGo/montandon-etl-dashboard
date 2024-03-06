@@ -8,7 +8,6 @@ module.exports = {
         'stylelint-config-concentric',
     ],
     rules: {
-        indentation: 4,
         'plugin/no-unused-selectors': {
             "suffixesToStrip": [".module"],
             "documents": [

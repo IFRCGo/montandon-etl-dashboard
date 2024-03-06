@@ -39,6 +39,7 @@ export type MyInputIndexRouteObject<T, K extends object> = {
     title: string;
     componentProps: T & JSX.IntrinsicAttributes;
     component: () => Promise<{
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         Component: (props: T) => React.ReactElement<any, any> | null;
     } & Omit<IndexRouteObject, ImmutableRouteKey | OmitInputRouteObjectKeys>>;
     parent?: MyOutputRouteObject<K>;
@@ -48,6 +49,7 @@ export type MyInputNonIndexRouteObject<T, K extends object> = {
     title: string;
     componentProps: T & JSX.IntrinsicAttributes;
     component: () => Promise<{
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         Component: (props: T) => React.ReactElement<any, any> | null;
     } & Omit<IndexRouteObject, ImmutableRouteKey | OmitInputRouteObjectKeys>>;
     parent?: MyOutputRouteObject<K>;
