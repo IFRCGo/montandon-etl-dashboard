@@ -5,6 +5,7 @@ import reactSwc from '@vitejs/plugin-react-swc';
 import { execSync } from 'child_process';
 import { compression } from 'vite-plugin-compression2';
 import checker from 'vite-plugin-checker';
+import svgr from 'vite-plugin-svgr';
 import { ValidateEnv as validateEnv } from '@julr/vite-plugin-validate-env';
 
 import envConfig from './env';
@@ -28,6 +29,7 @@ export default defineConfig(({ mode }) => {
                     lintCommand: 'stylelint "./src/**/*.css"',
                 },
             }) : undefined,
+            svgr(),
             reactSwc(),
             tsconfigPaths(),
             webfontDownload(),
