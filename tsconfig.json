@@ -20,10 +20,17 @@
 
         /* Linting */
         "strict": true,
+        "types": [
+            "vite-plugin-svgr/client",
+            "node"
+        ],
         "noUnusedLocals": true,
         "noUnusedParameters": true,
         "noFallthroughCasesInSwitch": true
     },
-    "include": ["src"],
+    "include": [
+        "src",
+        "env.ts"
+    ],
     "references": [{ "path": "./tsconfig.node.json" }]
 }
