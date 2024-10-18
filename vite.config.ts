@@ -1,11 +1,12 @@
-import { defineConfig } from 'vite';
-import tsconfigPaths from 'vite-tsconfig-paths';
-import webfontDownload from 'vite-plugin-webfont-dl';
+import { ValidateEnv as validateEnv } from '@julr/vite-plugin-validate-env';
 import reactSwc from '@vitejs/plugin-react-swc';
 import { execSync } from 'child_process';
-import { compression } from 'vite-plugin-compression2';
+import { defineConfig } from 'vite';
 import checker from 'vite-plugin-checker';
-import { ValidateEnv as validateEnv } from '@julr/vite-plugin-validate-env';
+import { compression } from 'vite-plugin-compression2';
+import svgr from 'vite-plugin-svgr';
+import webfontDownload from 'vite-plugin-webfont-dl';
+import tsconfigPaths from 'vite-tsconfig-paths';
 
 import envConfig from './env';
 
@@ -28,6 +29,7 @@ export default defineConfig(({ mode }) => {
                     lintCommand: 'stylelint "./src/**/*.css"',
                 },
             }) : undefined,
+            svgr(),
             reactSwc(),
             tsconfigPaths(),
             webfontDownload(),

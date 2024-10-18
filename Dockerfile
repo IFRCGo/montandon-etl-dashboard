@@ -5,6 +5,8 @@ RUN apt-get update -y \
         git bash g++ make \
     && rm -rf /var/lib/apt/lists/*
 
+RUN npm install pnpm
+
 WORKDIR /code
 
 RUN git config --global --add safe.directory /code

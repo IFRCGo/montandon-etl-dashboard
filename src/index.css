@@ -12,21 +12,15 @@
     --padding-small: 1.5em;
     --padding-medium: 2em;
 
-    background-color: var(--background-color);
-    text-rendering: optimizeLegibility;
-    line-height: 1.5;
-    color: var(--text-color);
-    font-family: 'Nunito', system-ui, sans-serif;
-    font-weight: 400;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-
-    color-scheme: light dark;
-
-    font-synthesis: none;
-    -webkit-text-size-adjust: 100%;
 }
-
+@media (prefers-color-scheme: light) {
+    :root {
+        --background-color: #ffffff;
+        --text-color: #213547;
+        --anchor-color: #646cff;
+        --anchor-hover-color: #747bff;
+    }
+}
 
 /* stylelint-disable-next-line plugin/no-unused-selectors */
 #webapp-root {
@@ -49,16 +43,20 @@ a {
 body {
     display: flex;
     margin: 0;
+    background-color: var(--background-color);
     min-width: 320px;
     min-height: 100vh;
     place-items: center;
-}
+    text-rendering: optimizeLegibility;
+    line-height: 1.5;
+    color: var(--text-color);
+    font-family: 'Nunito', system-ui, sans-serif;
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 
-@media (prefers-color-scheme: light) {
-    :root {
-        --background-color: #ffffff;
-        --text-color: #213547;
-        --anchor-color: #646cff;
-        --anchor-hover-color: #747bff;
-    }
+    color-scheme: light dark;
+
+    font-synthesis: none;
+    -webkit-text-size-adjust: 100%;
 }
