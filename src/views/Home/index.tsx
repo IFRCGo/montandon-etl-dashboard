@@ -12,6 +12,7 @@ interface Props {
     name?: string;
 }
 
+/** @knipignore */
 // eslint-disable-next-line import/prefer-default-export
 export function Component(props: Props) {
     const {

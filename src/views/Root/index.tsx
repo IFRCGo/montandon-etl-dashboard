@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import reactLogo from '../../assets/react.svg';
 import styles from './index.module.css';
 
+/** @knipignore */
 // eslint-disable-next-line import/prefer-default-export
 export function Component() {
     return (
