@@ -34,6 +34,10 @@ PostCSS is configured with the following plugins:
   - Bunny Fonts
   - Fontshare
 
+### SVG Imports
+
+- SVGR handles all type of SVG and transforms it into a React component.
+
 ### Absolute Imports
 
 - Vite is configured to resolve absolute imports defined on `tsconfig.json`
@@ -65,7 +69,7 @@ The commit hash is passed to the application through the environment variable `A
 - `stylelint` is used to lint css files
 - `eslint` is used to lint javascript and typescript files
 - `tsc` is used to typecheck typescript files
-- `unimported` to used to detect unused javascript and typescript files
+- `knip` to used to detect unused javascript and typescript files
 
 ### Docker
 

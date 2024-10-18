@@ -1,14 +1,14 @@
-import {
-    wrapRoute,
-    unwrapRoute,
-} from '#utils/routes';
 import type {
-    MyInputRouteObject,
     MyInputIndexRouteObject,
     MyInputNonIndexRouteObject,
+    MyInputRouteObject,
     MyOutputIndexRouteObject,
     MyOutputNonIndexRouteObject,
     MyOutputRouteObject,
+} from '#utils/routes';
+import {
+    unwrapRoute,
+    wrapRoute,
 } from '#utils/routes';
 
 import PageError from './PageError';
