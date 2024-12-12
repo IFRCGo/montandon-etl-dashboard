@@ -1,0 +1,3 @@
+[submodule "montandon-etl"]
+	path = montandon-etl
+	url = git@github.com:IFRCGo/montandon-etl.git

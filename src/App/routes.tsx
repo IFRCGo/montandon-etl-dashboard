@@ -40,7 +40,7 @@ const home = myWrapRoute({
     title: 'Home',
     index: true,
     component: () => import('#views/Home'),
-    componentProps: { name: 'Pine Apple' },
+    componentProps: { name: 'Montandon' },
     parent: root,
 });
 

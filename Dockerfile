@@ -5,7 +5,7 @@ RUN apt-get update -y \
         git bash g++ make \
     && rm -rf /var/lib/apt/lists/*
 
-RUN npm install pnpm
+RUN npm install -g pnpm
 
 WORKDIR /code
 

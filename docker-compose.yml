@@ -2,9 +2,9 @@ version: '3.8'
 services:
   react:
     build: .
-    command: sh -c 'yarn install && yarn dev --host'
+    command: sh -c 'pnpm install && pnpm start --host'
     environment:
-      APP_TITLE: ${APP_TITLE:-React Base App}
+      APP_TITLE: ${APP_TITLE:- Montandon ETL Dashboard}
     volumes:
       - .:/code
     ports:

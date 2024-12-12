@@ -24,6 +24,7 @@ build-ssr
 *.njsproj
 *.sln
 *.sw?
+.pnpm-store
 
 .env
 .eslintcache

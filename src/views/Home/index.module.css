@@ -1,7 +1,3 @@
-.card {
-    padding: var(--padding-medium);
-}
-
-.read-the-docs {
-    color: var(--label-color);
+.home {
+    display: flex;
 }
