@@ -1,9 +1,11 @@
 {
     "compilerOptions": {
         "paths": {
+            "#generated/*": ["./generated/*"],
             "#views/*": ["./src/views/*"],
             "#utils/*": ["./src/utils/*"],
-            "#configs/*": ["./src/configs/*"]
+            "#configs/*": ["./src/configs/*"],
+            "#contexts/*": ["./src/contexts/*"]
         },
 
         "target": "ESNext",

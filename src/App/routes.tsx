@@ -44,18 +44,10 @@ const home = myWrapRoute({
     parent: root,
 });
 
-const preferences = myWrapRoute({
-    title: 'Preferences',
-    path: 'preferences',
-    component: () => import('#views/Preferences'),
-    componentProps: {},
-    parent: root,
-});
-
 export const wrappedRoutes = {
     root,
     home,
-    preferences,
 };
 
 export const unwrappedRoutes = unwrapRoute(Object.values(wrappedRoutes));
+export type WrappedRoutes = typeof wrappedRoutes;

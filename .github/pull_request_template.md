@@ -13,6 +13,7 @@
 - [ ] typos
 - [ ] conflict markers
 - [ ] unwanted comments
+- [ ] submodule is up to date
 - [ ] temporary files, auto-generated files or secret keys
 - [ ] `console.log` meant for debugging
 - [ ] codegen errors

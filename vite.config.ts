@@ -45,7 +45,7 @@ export default defineConfig(({ mode }) => {
         },
         envPrefix: 'APP_',
         server: {
-            port: 3000,
+            port: 3091,
             strictPort: true,
         },
         build: {

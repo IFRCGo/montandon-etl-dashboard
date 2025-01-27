@@ -14,11 +14,11 @@ export function Component(props: Props) {
 
     return (
         <div className={styles.home}>
-            `This is the
+            This is the
             &thinsp;
             {name}
             &thinsp;
-            ETL Dashboard`
+            ETL Dashboard
         </div>
     );
 }

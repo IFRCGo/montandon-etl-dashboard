@@ -2,6 +2,8 @@ import './index.css';
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { ApolloProvider } from '@apollo/client';
+import { apolloClient } from '#configs/apollo';
 
 import App from './App/index.tsx';
 
@@ -15,7 +17,9 @@ if (!webappRootElement) {
 } else {
     ReactDOM.createRoot(webappRootElement).render(
         <React.StrictMode>
-            <App />
+            <ApolloProvider client={apolloClient}>
+                <App />
+            </ApolloProvider>
         </React.StrictMode>,
     );
 }

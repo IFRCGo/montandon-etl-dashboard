@@ -8,6 +8,8 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
+generated
+.pnpm-store
 dist
 dist-ssr
 build
@@ -24,7 +26,6 @@ build-ssr
 *.njsproj
 *.sln
 *.sw?
-.pnpm-store
 
 .env
 .eslintcache
