@@ -13,19 +13,19 @@ import {
     useQuery,
 } from '@apollo/client';
 
-import {
-    MeQuery,
-    MeQueryVariables,
-} from '#generated/types/graphql';
+import RouteContext from '#contexts/route';
 import UserContext, {
     UserAuth,
     UserContextProps,
 } from '#contexts/user';
-import RouteContext from '#contexts/route';
+import {
+    MeQuery,
+    MeQueryVariables,
+} from '#generated/types/graphql';
 
 import {
-    wrappedRoutes,
     unwrappedRoutes,
+    wrappedRoutes,
 } from './routes';
 
 const ME_QUERY = gql`

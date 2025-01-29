@@ -1,3 +1,4 @@
+import '@ifrc-go/ui/index.css';
 import './index.css';
 
 import React from 'react';

@@ -1,33 +1,44 @@
-import { useMemo } from 'react';
+import {
+    HTMLProps,
+    useMemo,
+} from 'react';
+import { Link } from 'react-router-dom';
 import {
     gql,
-    useQuery ,
+    useQuery,
 } from '@apollo/client';
 import {
     Container,
-     Table,
+    Pager,
+    Table,
 } from '@ifrc-go/ui';
-import {
-    ExtractionDataType,
-    MyQueryQuery,
-    MyQueryQueryVariables,
-} from '#generated/types/graphql';
+import { SortContext } from '@ifrc-go/ui/contexts';
+import { useTranslation } from '@ifrc-go/ui/hooks';
 import {
     createNumberColumn,
     createStringColumn,
 } from '@ifrc-go/ui/utils';
-import { useTranslation } from '@ifrc-go/ui/hooks';
 import { isDefined } from '@togglecorp/fujs';
 
+import {
+    type ExtractionDataType,
+    type MyQueryQuery,
+    type MyQueryQueryVariables,
+} from '#generated/types/graphql';
+
+import Page from '#components/Page';
+import useFilterState from '#hooks/useFilterState';
+
 import i18n from './i18n.json';
-import styles  from './styles.module.css';
+import styles from './styles.module.css';
 
 const keySelector = (item: ExtractionDataType) => item.id;
+const PAGE_SIZE = 10;
 
 const EXTRACTION_LIST = gql`
-    query MyQuery {
+    query MyQuery($pagination: OffsetPaginationInput) {
         private {
-            extractionList {
+            extractionList(pagination: $pagination) {
                 items {
                     hazardType
                     id
@@ -40,20 +51,45 @@ const EXTRACTION_LIST = gql`
                     status
                     url
                 }
+                limit
+                offset
+                count
             }
         }
     }
 `;
+
 /** @knipignore */
 // eslint-disable-next-line import/prefer-default-export
 export function Component() {
     const strings = useTranslation(i18n);
+
+    const {
+        sortState,
+        limit,
+        offset,
+        page,
+        setPage,
+    } = useFilterState({
+        pageSize: PAGE_SIZE,
+        filter: {},
+    });
+
+    const variables = useMemo(() => ({
+        pagination: {
+            limit,
+            offset,
+        },
+    }), [limit, offset]);
+
     const {
         data: extractionResponse,
         loading: extractionLoading,
         error: extractionError,
-    } = useQuery<MyQueryQuery, MyQueryQueryVariables>(EXTRACTION_LIST);
-    console.log('data:', extractionResponse);
+    } = useQuery<MyQueryQuery, MyQueryQueryVariables>(EXTRACTION_LIST, {
+        variables,
+    });
+
     const columns = useMemo(
         () => ([
             createStringColumn<ExtractionDataType, string>(
@@ -89,26 +125,20 @@ export function Component() {
                 (item) => item.respDataType,
             ),
 
-            createStringColumn<ExtractionDataType, string>(
+            createNumberColumn<ExtractionDataType, string>(
                 'revisionId',
                 strings.extractionListRevisionIdTitle,
                 (item) => item.revisionId,
-                { columnClassName: styles.revisionId }
+                { columnClassName: styles.revisionId },
             ),
 
             createStringColumn<ExtractionDataType, string>(
                 'source',
                 strings.extractionListSourceTitle,
                 (item) => item.source,
-                { columnClassName: styles.source }
+                { columnClassName: styles.source },
             ),
 
-            createNumberColumn<ExtractionDataType, string>(
-                'sourceValidationStatus',
-                strings.extractionListSourceValidationStatusTitle,
-                (item) => item.sourceValidationStatus,
-            ),
- 
             createStringColumn<ExtractionDataType, string>(
                 'status',
                 strings.extractionListStatusTitle,
@@ -116,10 +146,25 @@ export function Component() {
                 { columnClassName: styles.status },
             ),
 
-            createStringColumn<ExtractionDataType, string>(
+            createNumberColumn<ExtractionDataType, string>(
+                'sourceValidationStatus',
+                strings.extractionListSourceValidationStatusTitle,
+                (item) => item.sourceValidationStatus,
+                {columnClassName: styles.sourceValidation}
+            ),
+            createStringColumn<ExtractionDataType, HTMLProps<HTMLSpanElement>>(
                 'url',
                 strings.extractionListUrlTitle,
-                (item) => item.url,
+                (item) => (
+                    <a
+                        className={styles.actions}
+                        href={item.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        {item.url}
+                    </a>
+                ),
                 { columnClassName: styles.url },
             ),
         ]),
@@ -133,22 +178,40 @@ export function Component() {
             strings.extractionListSourceTitle,
             strings.extractionListSourceValidationStatusTitle,
             strings.extractionListStatusTitle,
-            strings.extractionListUrlTitle
-        ]
+            strings.extractionListUrlTitle,
+        ],
     );
+
+    const data = extractionResponse?.private.extractionList;
+
     return (
-        <Container
-            heading='Extraction List'
-            className={styles.extractionTable}>
-            <Table
-                columns={columns}
-                data={extractionResponse?.private.extractionList.items}
-                keySelector={keySelector}
-                pending={extractionLoading}
-                filtered={false}
-                errored={isDefined(extractionError)}
-            />
-        </Container>
+        <Page>
+            <Container
+                heading="All Extractions"
+                withHeaderBorder
+                className={styles.extractionTable}
+                footerActions={isDefined(data) && (
+                    <Pager
+                        activePage={page}
+                        itemsCount={data.count}
+                        maxItemsPerPage={limit}
+                        onActivePageChange={setPage}
+                    />
+                )}
+            >
+                <SortContext.Provider value={sortState}>
+                    <Table
+                        columns={columns}
+                        data={data?.items}
+                        keySelector={keySelector}
+                        pending={extractionLoading}
+                        filtered={false}
+                        errored={isDefined(extractionError)}
+                    />
+                </SortContext.Provider>
+            </Container>
+        </Page>
+
     );
 }
 

@@ -1,14 +1,15 @@
 {
     "namespace": "montadonDashboard",
     "strings": {
-        "extractionListHazardTypeTitle": "HazardType",
+        "allExtractions": "All Extractions",
+        "extractionListHazardTypeTitle": "Hazard Type",
         "extractionListIdTitle": "Id",
-        "extractionListParentIdTitle": "ParentId",
-        "extractionListRespCodeTitle": "respCode",
-        "extractionListRespDataTypeTitle": "respDataType",
-        "extractionListRevisionIdTitle": "revisionId",
+        "extractionListParentIdTitle": "Parent Id",
+        "extractionListRespCodeTitle": "Resp Code",
+        "extractionListRespDataTypeTitle": "Resp DataType",
+        "extractionListRevisionIdTitle": "Revision Id",
         "extractionListSourceTitle" : "Source",
-        "extractionListSourceValidationStatusTitle": "sourceValidationStatus",
+        "extractionListSourceValidationStatusTitle": "Source Validation Status",
         "extractionListStatusTitle": "Status",
         "extractionListUrlTitle": "url"
     }
