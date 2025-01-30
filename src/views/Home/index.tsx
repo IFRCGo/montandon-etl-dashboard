@@ -2,43 +2,42 @@ import {
     HTMLProps,
     useMemo,
 } from 'react';
-import { Link } from 'react-router-dom';
 import {
     gql,
     useQuery,
 } from '@apollo/client';
 import {
+    Button,
     Container,
+    DateInput,
     Pager,
+    SelectInput,
     Table,
 } from '@ifrc-go/ui';
 import { SortContext } from '@ifrc-go/ui/contexts';
-import { useTranslation } from '@ifrc-go/ui/hooks';
 import {
     createNumberColumn,
     createStringColumn,
 } from '@ifrc-go/ui/utils';
 import { isDefined } from '@togglecorp/fujs';
 
+import Page from '#components/Page';
 import {
     type ExtractionDataType,
     type MyQueryQuery,
     type MyQueryQueryVariables,
 } from '#generated/types/graphql';
-
-import Page from '#components/Page';
 import useFilterState from '#hooks/useFilterState';
 
-import i18n from './i18n.json';
 import styles from './styles.module.css';
 
-const keySelector = (item: ExtractionDataType) => item.id;
-const PAGE_SIZE = 10;
-
 const EXTRACTION_LIST = gql`
-    query MyQuery($pagination: OffsetPaginationInput) {
+    query MyQuery(
+        $pagination: OffsetPaginationInput,
+        $filters: ExtractionDataFilter
+        ) {
         private {
-            extractionList(pagination: $pagination) {
+            extractionList(pagination: $pagination,  filters: $filters,) {
                 items {
                     hazardType
                     id
@@ -58,29 +57,61 @@ const EXTRACTION_LIST = gql`
         }
     }
 `;
+// FIXME : Add ExtractionDataSourceTypeEnum
+const sourceOptions = [
+    { source: 'GDACS' },
+    { source: 'PDC' },
+];
+
+const statusOptions = [
+    { status: 'PENDING' },
+    { status: 'IN-PROGRESS' },
+    { status: 'SUCCESS' },
+    { status: 'FAILED' },
+];
+
+const keySelector = (item: ExtractionDataType) => item.id;
+const sourceKeySelector = (option: { source: string; }) => option.source;
+const statusKeySelector = (option: {status : string}) => option.status;
+const sourceLabelSelector = (option: { source: string; }) => option.source;
+const statusLabelSelector = (option: {status: string}) => option.status;
+const PAGE_SIZE = 10;
 
 /** @knipignore */
 // eslint-disable-next-line import/prefer-default-export
 export function Component() {
-    const strings = useTranslation(i18n);
-
     const {
         sortState,
         limit,
         offset,
         page,
         setPage,
-    } = useFilterState({
+        rawFilter,
+        resetFilter,
+        filter,
+        setFilterField,
+        filtered,
+    } = useFilterState<{
+        createdAtGte?: string;
+        createdAtLte?: string;
+        source?: string;
+        status?: string;
+    }>({
         pageSize: PAGE_SIZE,
         filter: {},
     });
 
     const variables = useMemo(() => ({
         pagination: {
-            limit,
             offset,
+            limit,
         },
-    }), [limit, offset]);
+        filters: filter,
+    }), [
+        limit,
+        offset,
+        filter,
+    ]);
 
     const {
         data: extractionResponse,
@@ -93,68 +124,74 @@ export function Component() {
     const columns = useMemo(
         () => ([
             createStringColumn<ExtractionDataType, string>(
-                'hazardType',
-                strings.extractionListHazardTypeTitle,
-                (item) => item.hazardType,
-                { columnClassName: styles.hazardType },
-            ),
-
-            createStringColumn<ExtractionDataType, string>(
                 'id',
-                strings.extractionListIdTitle,
+                'Id',
                 (item) => item.id,
                 { columnClassName: styles.id },
             ),
-
-            createNumberColumn<ExtractionDataType, string>(
-                'parentId',
-                strings.extractionListParentIdTitle,
-                (item) => item.parentId,
-                { columnClassName: styles.parentId },
-            ),
-
-            createNumberColumn<ExtractionDataType, string>(
-                'respCode',
-                strings.extractionListRespCodeTitle,
-                (item) => item.respCode,
-            ),
-
             createStringColumn<ExtractionDataType, string>(
-                'respDataType',
-                strings.extractionListRespDataTypeTitle,
-                (item) => item.respDataType,
+                'hazardType',
+                'Hazard Type',
+                (item) => item.hazardType,
+                {
+                    sortable: true,
+                },
             ),
-
-            createNumberColumn<ExtractionDataType, string>(
-                'revisionId',
-                strings.extractionListRevisionIdTitle,
-                (item) => item.revisionId,
-                { columnClassName: styles.revisionId },
-            ),
-
-            createStringColumn<ExtractionDataType, string>(
-                'source',
-                strings.extractionListSourceTitle,
-                (item) => item.source,
-                { columnClassName: styles.source },
-            ),
-
             createStringColumn<ExtractionDataType, string>(
                 'status',
-                strings.extractionListStatusTitle,
+                'Status',
                 (item) => item.status,
-                { columnClassName: styles.status },
+                {
+                    sortable: true,
+                },
             ),
-
+            createStringColumn<ExtractionDataType, string>(
+                'source',
+                'Source',
+                (item) => item.source,
+                {
+                    sortable: true,
+                },
+            ),
+            // FIXME:Change to stringColumn after server side
             createNumberColumn<ExtractionDataType, string>(
                 'sourceValidationStatus',
-                strings.extractionListSourceValidationStatusTitle,
+                'Source Validation Status',
                 (item) => item.sourceValidationStatus,
-                {columnClassName: styles.sourceValidation}
+                {
+                    sortable: true,
+                },
+            ),
+            createNumberColumn<ExtractionDataType, string>(
+                'respCode',
+                'respCode',
+                (item) => item.respCode,
+                { sortable: true },
+            ),
+            createStringColumn<ExtractionDataType, string>(
+                'respDataType',
+                'Resp DataType',
+                (item) => item.respDataType,
+                { sortable: true },
+            ),
+            // FIXME:Change to stringColumn after server side
+            createNumberColumn<ExtractionDataType, string>(
+                'parentId',
+                'Parent Id',
+                (item) => item.parentId,
+            ),
+            createNumberColumn<ExtractionDataType, string>(
+                'revisionId',
+                'Revision Id',
+                (item) => item.revisionId,
+                {
+                    sortable: true,
+                    columnClassName: styles.revisionId,
+                },
             ),
             createStringColumn<ExtractionDataType, HTMLProps<HTMLSpanElement>>(
                 'url',
-                strings.extractionListUrlTitle,
+                'Url',
                 (item) => (
                     <a
                         className={styles.actions}
@@ -168,18 +205,7 @@ export function Component() {
                 { columnClassName: styles.url },
             ),
         ]),
-        [
-            strings.extractionListHazardTypeTitle,
-            strings.extractionListIdTitle,
-            strings.extractionListParentIdTitle,
-            strings.extractionListRespCodeTitle,
-            strings.extractionListRespDataTypeTitle,
-            strings.extractionListRevisionIdTitle,
-            strings.extractionListSourceTitle,
-            strings.extractionListSourceValidationStatusTitle,
-            strings.extractionListStatusTitle,
-            strings.extractionListUrlTitle,
-        ],
+        [],
     );
 
     const data = extractionResponse?.private.extractionList;
@@ -198,6 +224,52 @@ export function Component() {
                         onActivePageChange={setPage}
                     />
                 )}
+                filters={(
+                    <>
+                        <DateInput
+                            name="createdAtGte"
+                            label="Created GTE"
+                            value={rawFilter.createdAtGte}
+                            onChange={setFilterField}
+                        />
+                        <DateInput
+                            name="createdAtLte"
+                            label="Created LTE"
+                            value={rawFilter.createdAtLte}
+                            onChange={setFilterField}
+                        />
+                        <SelectInput
+                            label="Source"
+                            placeholder="All Sources"
+                            name="source"
+                            options={sourceOptions}
+                            keySelector={sourceKeySelector}
+                            labelSelector={sourceLabelSelector}
+                            value={rawFilter.source}
+                            onChange={setFilterField}
+                        />
+                        <SelectInput
+                            name="status"
+                            label="Status"
+                            placeholder="Status"
+                            options={statusOptions}
+                            keySelector={statusKeySelector}
+                            labelSelector={statusLabelSelector}
+                            value={rawFilter.status}
+                            onChange={setFilterField}
+                        />
+                        <div className={styles.filterButton}>
+                            <Button
+                                name={undefined}
+                                variant="secondary"
+                                onClick={resetFilter}
+                                disabled={!filtered}
+                            >
+                                Clear
+                            </Button>
+                        </div>
+                    </>
+                )}
             >
                 <SortContext.Provider value={sortState}>
                     <Table
@@ -205,13 +277,12 @@ export function Component() {
                         data={data?.items}
                         keySelector={keySelector}
                         pending={extractionLoading}
-                        filtered={false}
+                        filtered={filtered}
                         errored={isDefined(extractionError)}
                     />
                 </SortContext.Provider>
             </Container>
         </Page>
-
     );
 }
 

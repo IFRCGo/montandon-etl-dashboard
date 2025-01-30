@@ -4,11 +4,10 @@ import {
     useMemo,
     useReducer,
 } from 'react';
+import { useDebouncedValue } from '@ifrc-go/ui/hooks';
 import { hasSomeDefinedValue } from '@ifrc-go/ui/utils';
 import { isNotDefined } from '@togglecorp/fujs';
 import { EntriesAsList } from '@togglecorp/toggle-form';
-
-import useDebouncedValue from '#hooks/useDebouncedValue';
 
 type SortDirection = 'asc' | 'dsc';
 interface SortParameter {

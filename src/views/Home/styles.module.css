@@ -1,54 +1,33 @@
 .extraction-table{
     overflow: auto;
 
-    .hazard-type {
-        width: 0%;
-        min-width: 7rem;
-    }
     .id{
         width:0%;
-        min-width: 4rem;
-    }
-    .resp-code{
-        width: 0%;
-        min-width: 7rem;
-    }
-    .parent-id{
-        width: 0%;
         min-width: 5rem;
-    }
-    resp-data-type{
-        width: 0%;
-        min-width:5rem;
     }
     .revision-id{
         width: 0%;
         min-width: 7rem;
     }
-    .source{
-        width:0%;
-        min-width: 5rem;
-    }
-    .source-validation{
-        width:0%;
-            min-width: 7rem;
-    }
-    .status{
-        min-width: 5rem;
-    }
     .url{
-        min-width:14rem
+        min-width:14rem;
     }
+
     .actions {
         width: 0;
         min-width: 10rem;
-        color: var(--go-ui-color-text);
         text-decoration: none;
+        color: var(--go-ui-color-text);
         font-weight: var(--go-ui-font-weight-medium);
     }
 
     .actions:hover {
         text-decoration: underline;
         color: var(--go-ui-color-primary-red);
+    }
+    .filter-button {
+        display: flex;
+        gap: var(--go-ui-spacing-md);
+        align-items: flex-end;
     }
 }
