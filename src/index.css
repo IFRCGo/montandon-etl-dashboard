@@ -2,7 +2,11 @@
     box-sizing: border-box;
 }
 
-
+html {
+    margin: 0;
+    padding: 0;
+    scrollbar-gutter: stable;
+}
 body {
     line-height: var(--go-ui-line-height-md);
     color: var(--go-ui-color-text);
