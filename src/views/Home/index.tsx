@@ -1,4 +1,7 @@
-import { useMemo } from 'react';
+import {
+    useMemo,
+    useState,
+} from 'react';
 import {
     gql,
     useQuery,
@@ -7,9 +10,14 @@ import {
     Button,
     Container,
     DateInput,
+    KeyFigure,
     Pager,
     SelectInput,
+    Tab,
     Table,
+    TabList,
+    TabPanel,
+    Tabs,
 } from '@ifrc-go/ui';
 import { SortContext } from '@ifrc-go/ui/contexts';
 import {
@@ -22,76 +30,95 @@ import { isDefined } from '@togglecorp/fujs';
 
 import Page from '#components/Page';
 import {
-    ExtractionDataFilter,
-    ExtractionDataSourceTypeEnum,
-    ExtractionDataStatusTypeEnum,
-    ExtractionDataType,
-    ExtractionListQueryVariables,
-    OffsetPaginationInput,
-    Query,
+    type ExtractionEnumsQuery,
+    type ExtractionEnumsQueryVariables,
+    type ExtractionsQuery,
+    type ExtractionsQueryVariables,
 } from '#generated/types/graphql';
 import useFilterState from '#hooks/useFilterState';
 
 import styles from './styles.module.css';
 
-const EXTRACTION_LIST = gql`
-    query ExtractionList(
+const EXTRACTION_ENUMS = gql`
+    query ExtractionEnums {
+        enums {
+            ExtractionDataSource {
+                key
+                label
+            }
+            ExtractionDataSourceValidationStatus {
+                key
+                label
+            }
+            ExtractionDataStatus {
+                key
+                label
+            }
+        }
+    }
+`;
+
+const EXTRACTIONS = gql`
+    query Extractions (
         $pagination: OffsetPaginationInput,
-        $filters: ExtractionDataFilter
+        $filters: ExtractionDataFilter,
     ) {
-        private {
-            extractionList(pagination: $pagination, filters: $filters) {
-                items {
-                    hazardType
-                    id
-                    parentId
-                    respCode
-                    respDataType
-                    revisionId
-                    source
-                    sourceValidationStatus
-                    status
-                    url
-                }
+        extractions(filters: $filters, pagination: $pagination) {
+            totalCount
+            pageInfo {
                 limit
                 offset
-                count
             }
+            results {
+                hazardType
+                id
+                parentId
+                respCode
+                respDataType
+                source
+                sourceValidationStatus
+                status
+                traceId
+                url
+            }
+        }
+        statusCountExtraction {
+            failedCount
+            inProgressCount
+            pendingCount
+            successCount
+        }
+        statusSourceCountsExtraction {
+            failedCount
+            inProgressCount
+            pendingCount
+            source
+            successCount
         }
     }
 `;
 
-const SOURCE_ENUMS = gql`
-    query SourceEnums {
-        __type(name: "ExtractionDataSourceTypeEnum") {
-            enumValues {
-                name
-                description
-            }
-        }
-    }
-`;
+type DataSourceType = NonNullable<NonNullable<NonNullable<ExtractionEnumsQuery['enums']>['ExtractionDataSource']>[number]>;
+type ExtractionDataStatusType = NonNullable<NonNullable<NonNullable<ExtractionEnumsQuery['enums']>['ExtractionDataStatus']>[number]>;
+type ExtractionDataItemType = NonNullable<NonNullable<NonNullable<ExtractionsQuery['extractions']>['results']>[number]>;
+type ExtractionFilterType = NonNullable<ExtractionsQueryVariables['filters']>;
 
-const STATUS_ENUMS = gql`
-    query StatusEnums {
-        __type(name: "ExtractionDataStatusTypeEnum") {
-            enumValues {
-                name
-            }
-        }
-    }
-`;
+const keySelector = (item: { id: string }) => item.id;
+const sourceKeySelector = (option: DataSourceType) => option.key;
+const sourceLabelSelector = (option: DataSourceType) => option.label;
+const statusKeySelector = (option: ExtractionDataStatusType) => option.key;
+const statusLabelSelector = (option: ExtractionDataStatusType) => option.label;
+const PAGE_SIZE = 20;
 
-const keySelector = (item: ExtractionDataType) => item.id;
-const sourceKeySelector = (option: { name: string }) => option.name;
-const statusKeySelector = (option: { name: string }) => option.name;
-const sourceLabelSelector = (option: { name: string }) => option.name;
-const statusLabelSelector = (option: { name: string }) => option.name;
-const PAGE_SIZE = 10;
-
+type TabType = 'extraction' | 'transformation' | 'load';
 /** @knipignore */
 // eslint-disable-next-line import/prefer-default-export
 export function Component() {
+    const [
+        activeTab,
+        setActiveTab,
+    ] = useState<TabType>('extraction');
+
     const {
         sortState,
         limit,
@@ -103,30 +130,17 @@ export function Component() {
         filter,
         setFilterField,
         filtered,
-    } = useFilterState<{
-        createdAtGte?: string;
-        createdAtLte?: string;
-        source?:string;
-        status?: string;
-    }>({
+    } = useFilterState<ExtractionFilterType>({
         pageSize: PAGE_SIZE,
         filter: {},
     });
 
-    const variables: {
-        pagination: OffsetPaginationInput;
-        filters: ExtractionDataFilter;
-    } = useMemo(() => ({
+    const variables: ExtractionsQueryVariables = useMemo(() => ({
         pagination: {
             offset,
             limit,
         },
-        filters: {
-            createdAtGte: filter.createdAtGte,
-            createdAtLte: filter.createdAtLte,
-            source: filter.source as ExtractionDataSourceTypeEnum | undefined,
-            status: filter.status as ExtractionDataStatusTypeEnum | undefined | null,
-        },
+        filters: filter,
     }), [
         limit,
         offset,
@@ -134,39 +148,34 @@ export function Component() {
     ]);
 
     const {
-        data: extractionResponse,
-        loading: extractionLoading,
-        error: extractionError,
-    } = useQuery<Query, ExtractionListQueryVariables>(EXTRACTION_LIST, {
-        variables,
-    });
-
-    const {
-        data: sourceData,
-    } = useQuery(
-        SOURCE_ENUMS,
-    );
-    const {
-        data: statusData,
-    } = useQuery(
-        STATUS_ENUMS,
+        data: extractionsResponse,
+        loading: extractionsLoading,
+        error: extractionsError,
+    } = useQuery<ExtractionsQuery, ExtractionsQueryVariables>(
+        EXTRACTIONS,
+        {
+            variables,
+        },
     );
 
-    // eslint-disable-next-line no-underscore-dangle
-    const sourceOptions = sourceData?.__type.enumValues;
-    // eslint-disable-next-line no-underscore-dangle
-    const statusOptions = statusData?.__type.enumValues;
+    const {
+        data: extractionEnumsResponse,
+    } = useQuery<ExtractionEnumsQuery, ExtractionEnumsQueryVariables>(
+        EXTRACTION_ENUMS,
+    );
+
+    const sourceOptions = extractionEnumsResponse?.enums?.ExtractionDataSource;
+    const statusOptions = extractionEnumsResponse?.enums?.ExtractionDataStatus;
 
     const columns = useMemo(
         () => ([
-            createNumberColumn<ExtractionDataType, number>(
+            createStringColumn<ExtractionDataItemType, string>(
                 'id',
                 'Id',
                 (item) => item.id,
                 { columnClassName: styles.id },
             ),
-
-            createStringColumn<ExtractionDataType, string>(
+            createStringColumn<ExtractionDataItemType, string>(
                 'hazardType',
                 'Hazard Type',
                 (item) => item.hazardType,
@@ -174,8 +183,7 @@ export function Component() {
                     sortable: true,
                 },
             ),
-
-            createStringColumn<ExtractionDataType, string>(
+            createStringColumn<ExtractionDataItemType, string>(
                 'status',
                 'Status',
                 (item) => item.status,
@@ -183,8 +191,7 @@ export function Component() {
                     sortable: true,
                 },
             ),
-
-            createStringColumn<ExtractionDataType, string>(
+            createStringColumn<ExtractionDataItemType, string>(
                 'source',
                 'Source',
                 (item) => item.source,
@@ -192,8 +199,7 @@ export function Component() {
                     sortable: true,
                 },
             ),
-
-            createStringColumn<ExtractionDataType, string>(
+            createStringColumn<ExtractionDataItemType, string>(
                 'sourceValidationStatus',
                 'Source validation Status',
                 (item) => item.sourceValidationStatus,
@@ -201,38 +207,32 @@ export function Component() {
                     sortable: true,
                 },
             ),
-
-            createNumberColumn<ExtractionDataType, number>(
+            createNumberColumn<ExtractionDataItemType, string>(
                 'respCode',
                 'Response Code',
                 (item) => item.respCode,
-                { sortable: true },
             ),
-
-            createStringColumn<ExtractionDataType, string>(
+            createStringColumn<ExtractionDataItemType, string>(
                 'respDataType',
                 'Response data Type',
                 (item) => item.respDataType,
                 { sortable: true },
             ),
-
-            createNumberColumn<ExtractionDataType, number>(
+            createStringColumn<ExtractionDataItemType, string>(
                 'parentId',
                 'Parent Id',
                 (item) => item.parentId,
             ),
-
-            createNumberColumn<ExtractionDataType, number>(
-                'revisionId',
-                'Revision Id',
-                (item) => item.revisionId,
+            createStringColumn<ExtractionDataItemType, string>(
+                'traceId',
+                'Trace Id',
+                (item) => item.traceId,
                 {
                     sortable: true,
                     columnClassName: styles.revisionId,
                 },
             ),
-
-            createElementColumn<ExtractionDataType, string, { url: string }>(
+            createElementColumn<ExtractionDataItemType, string, { url: string }>(
                 'url',
                 'Source url',
                 ({ url }) => (
@@ -245,22 +245,67 @@ export function Component() {
                         {url}
                     </a>
                 ),
-                (_key, item) => ({ url: item.url }),
+                (_, item) => ({ url: item.url }),
                 { columnClassName: styles.url },
             ),
         ]),
         [],
     );
 
-    const data = extractionResponse?.private.extractionList;
+    const data = extractionsResponse?.extractions?.results;
 
     const heading = resolveToString(
         'All Extraction ({numAppeals})',
-        { numAppeals: data?.count },
+        { numAppeals: extractionsResponse?.extractions?.totalCount },
     );
 
     return (
-        <Page>
+        <Page
+            className={styles.home}
+            mainSectionClassName={styles.mainSection}
+        >
+            <Tabs
+                value={activeTab}
+                onChange={setActiveTab}
+            >
+                <TabList>
+                    <Tab name="extraction">
+                        Extraction
+                    </Tab>
+                    <Tab name="transformation">
+                        Transformation
+                    </Tab>
+                    <Tab name="load">
+                        Load
+                    </Tab>
+                </TabList>
+            </Tabs>
+            <TabPanel name="extraction">
+                Extraction
+            </TabPanel>
+            <TabPanel name="transformation">
+                Transformation
+            </TabPanel>
+            <div className={styles.keyFigures}>
+                <KeyFigure
+                    // FIXME: Fix this after this is no longer array from sever
+                    value={extractionsResponse?.statusCountExtraction[0]?.successCount}
+                    label="Total Extractions Succeeded"
+                    className={styles.keyFigureItem}
+                />
+                <KeyFigure
+                    // FIXME: Fix this after this is no longer array from sever
+                    value={extractionsResponse?.statusCountExtraction[0]?.failedCount}
+                    label="Total Extractions Failed"
+                    className={styles.keyFigureItem}
+                />
+                <KeyFigure
+                    // FIXME: Fix this after this is no longer array from sever
+                    value={extractionsResponse?.statusCountExtraction[0]?.pendingCount}
+                    label="Total Extractions Pending"
+                    className={styles.keyFigureItem}
+                />
+            </div>
             <Container
                 heading={heading}
                 withHeaderBorder
@@ -268,7 +313,7 @@ export function Component() {
                 footerActions={isDefined(data) && (
                     <Pager
                         activePage={page}
-                        itemsCount={data.count}
+                        itemsCount={extractionsResponse?.extractions?.totalCount ?? 0}
                         maxItemsPerPage={limit}
                         onActivePageChange={setPage}
                     />
@@ -276,15 +321,9 @@ export function Component() {
                 filters={(
                     <>
                         <DateInput
-                            name="createdAtGte"
-                            label="Created From"
-                            value={rawFilter.createdAtGte}
-                            onChange={setFilterField}
-                        />
-                        <DateInput
-                            name="createdAtLte"
-                            label="Created To"
-                            value={rawFilter.createdAtLte}
+                            name="createdAt"
+                            label="Created At"
+                            value={rawFilter.createdAt}
                             onChange={setFilterField}
                         />
                         <SelectInput
@@ -323,11 +362,11 @@ export function Component() {
                 <SortContext.Provider value={sortState}>
                     <Table
                         columns={columns}
-                        data={data?.items}
+                        data={data}
                         keySelector={keySelector}
-                        pending={extractionLoading}
+                        pending={extractionsLoading}
                         filtered={filtered}
-                        errored={!!extractionError}
+                        errored={isDefined(extractionsError)}
                     />
                 </SortContext.Provider>
             </Container>
