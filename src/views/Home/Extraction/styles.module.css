@@ -3,20 +3,22 @@
     .main-section {
         display: flex;
         flex-direction: column;
-        padding: var(--go-ui-spacing-sm) !important;
+        padding: var(--go-ui-spacing-lg) !important;
         gap: var(--go-ui-spacing-xl);
     }
 
     .key-figures {
-        display: flex;
-        gap: var(--go-ui-spacing-sm);
-
+        display: grid;
+        grid-gap: var(--go-ui-spacing-lg);
+        grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    
         .key-figure-item {
             border-radius: var(--go-ui-border-radius-sm);
             background-color: var(--go-ui-color-gray-20);
+            padding: var(--go-ui-spacing-lg) var(--go-ui-spacing-md);
+            height: 100%;
         }
     }
-
     .extraction-table{
         overflow: auto;
 
@@ -44,5 +46,10 @@
             text-decoration: underline;
             color: var(--go-ui-color-primary-red);
         }
+    }
+    .filter-button {
+        display: flex;
+        gap: var(--go-ui-spacing-md);
+        align-items: flex-end;
     }
 }

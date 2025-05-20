@@ -5,6 +5,7 @@ import {
 } from '@apollo/client';
 import {
     Button,
+    Checkbox,
     Container,
     DateInput,
     KeyFigure,
@@ -15,6 +16,7 @@ import {
 } from '@ifrc-go/ui';
 import { SortContext } from '@ifrc-go/ui/contexts';
 import {
+    createElementColumn,
     createStringColumn,
     resolveToString,
 } from '@ifrc-go/ui/utils';
@@ -94,7 +96,9 @@ const FILTERS_ENUMS = gql`
 `;
 type DataSourceType = NonNullable<NonNullable<NonNullable<ExtractionEnumsQuery['enums']>['ExtractionDataSource']>[number]>;
 type TransformsDataStatusType = NonNullable<NonNullable<NonNullable<ExtractionEnumsQuery['enums']>['ExtractionDataStatus']>[number]>;
-type TransformationDataItem = NonNullable<NonNullable<NonNullable<TransformsQuery['transforms']>['results']>[number]>;
+type TransformationDataItem = NonNullable<NonNullable<NonNullable<TransformsQuery['transforms']>['results']>[number]> & {
+    isSelected: boolean;
+};
 type TransformFilterType = NonNullable<TransformsQueryVariables['filters']>;
 
 const sourceKeySelector = (option: DataSourceType) => option.key;
@@ -194,6 +198,18 @@ function Transformation() {
 
     const columns = useMemo(
         () => ([
+            createElementColumn<TransformationDataItem, string, {isSelected: boolean }>(
+                'select',
+                '',
+                ({ isSelected }) => (
+                    <Checkbox
+                        checked={isSelected}
+                        onChange={() => {}}
+                    />
+                ),
+                (_, item) => ({ select: item.isSelected }),
+                { columnClassName: styles.id },
+            ),
             createStringColumn<TransformationDataItem, string>(
                 'id',
                 'Id',
@@ -262,7 +278,7 @@ function Transformation() {
                     className={styles.keyFigureItem}
                 />
                 <KeyFigure
-                    value={transformationResponse?.statusCountTransform[0]?.successCount}
+                    value={transformationResponse?.statusCountTransform[0]?.failedCount}
                     label="Total Transforms Failed"
                     className={styles.keyFigureItem}
                 />

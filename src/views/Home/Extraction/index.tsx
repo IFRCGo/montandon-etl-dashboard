@@ -5,6 +5,7 @@ import {
 } from '@apollo/client';
 import {
     Button,
+    Checkbox,
     Container,
     DateInput,
     KeyFigure,
@@ -97,7 +98,9 @@ const EXTRACTION_ENUMS = gql`
 
 type DataSourceType = NonNullable<NonNullable<NonNullable<ExtractionEnumsQuery['enums']>['ExtractionDataSource']>[number]>;
 type ExtractionDataStatusType = NonNullable<NonNullable<NonNullable<ExtractionEnumsQuery['enums']>['ExtractionDataStatus']>[number]>;
-type ExtractionDataItemType = NonNullable<NonNullable<NonNullable<ExtractionsQuery['extractions']>['results']>[number]>;
+type ExtractionDataItemType = NonNullable<NonNullable<NonNullable<ExtractionsQuery['extractions']>['results']>[number]> & {
+    isSelected: boolean;
+};
 type ExtractionFilterType = NonNullable<ExtractionsQueryVariables['filters']>;
 
 const sourceKeySelector = (option: DataSourceType) => option.key;
@@ -198,6 +201,18 @@ function Extraction() {
 
     const columns = useMemo(
         () => ([
+            createElementColumn<ExtractionDataItemType, string, {isSelected: boolean }>(
+                'select',
+                '',
+                ({ isSelected }) => (
+                    <Checkbox
+                        checked={isSelected}
+                        onChange={() => {}}
+                    />
+                ),
+                (_, item) => ({ select: item.isSelected }),
+                { columnClassName: styles.id },
+            ),
             createStringColumn<ExtractionDataItemType, string>(
                 'id',
                 'Id',
