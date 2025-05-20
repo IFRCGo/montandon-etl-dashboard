@@ -4,10 +4,14 @@ import {
     useQuery,
 } from '@apollo/client';
 import {
+    Button,
     Container,
+    DateInput,
     KeyFigure,
     Pager,
+    SelectInput,
     Table,
+    TextInput,
 } from '@ifrc-go/ui';
 import { SortContext } from '@ifrc-go/ui/contexts';
 import {
@@ -16,16 +20,19 @@ import {
     createStringColumn,
     resolveToString,
 } from '@ifrc-go/ui/utils';
-import { isDefined } from '@togglecorp/fujs';
+import {
+    isDefined,
+    isNotDefined,
+} from '@togglecorp/fujs';
 
 import Page from '#components/Page';
 import {
+    DataStatusTypeEnum,
+    ExtractionEnumsQuery,
     type ExtractionsQuery,
     type ExtractionsQueryVariables,
 } from '#generated/types/graphql';
 import useFilterState from '#hooks/useFilterState';
-
-import Filters from '../Filters';
 
 import styles from './styles.module.css';
 
@@ -68,11 +75,39 @@ const EXTRACTIONS = gql`
         }
     }
 `;
+
+const EXTRACTION_ENUMS = gql`
+    query ExtractionEnums {
+        enums {
+            ExtractionDataSource {
+                key
+                label
+            }
+            ExtractionDataSourceValidationStatus {
+                key
+                label
+            }
+            ExtractionDataStatus {
+                key
+                label
+            }
+        }
+    }
+`;
+
+type DataSourceType = NonNullable<NonNullable<NonNullable<ExtractionEnumsQuery['enums']>['ExtractionDataSource']>[number]>;
+type ExtractionDataStatusType = NonNullable<NonNullable<NonNullable<ExtractionEnumsQuery['enums']>['ExtractionDataStatus']>[number]>;
 type ExtractionDataItemType = NonNullable<NonNullable<NonNullable<ExtractionsQuery['extractions']>['results']>[number]>;
 type ExtractionFilterType = NonNullable<ExtractionsQueryVariables['filters']>;
 
+const sourceKeySelector = (option: DataSourceType) => option.key;
+const sourceLabelSelector = (option: DataSourceType) => option.label;
+const statusKeySelector = (option: ExtractionDataStatusType) => option.key;
+const statusLabelSelector = (option: ExtractionDataStatusType) => option.label;
 const keySelector = (item: { id: string }) => item.id;
 const PAGE_SIZE = 20;
+const ASC = 'ASC';
+const DESC = 'DESC';
 
 function Extraction() {
     const {
@@ -81,23 +116,65 @@ function Extraction() {
         offset,
         page,
         setPage,
+        rawFilter,
+        resetFilter,
         filter,
+        setFilterField,
         filtered,
-    } = useFilterState<ExtractionFilterType>({
-        pageSize: PAGE_SIZE,
-        filter: {},
-    });
+    } = useFilterState<{
+        createdAtStart?: string;
+        createdAtEnd?: string;
+        traceId?: string;
+        source?: DataSourceType;
+        status?: DataStatusTypeEnum;
+      }>({
+          filter: {},
+          pageSize: PAGE_SIZE,
+      });
 
-    const variables: ExtractionsQueryVariables = useMemo(() => ({
-        pagination: {
-            offset,
-            limit,
-        },
-        filters: filter,
-    }), [
+    const order = useMemo(() => {
+        if (isNotDefined(sortState.sorting)) {
+            return undefined;
+        }
+        return {
+            [sortState.sorting.name]: sortState.sorting.direction === 'asc' ? ASC : DESC,
+        };
+    }, [sortState.sorting]);
+
+    const variables: ExtractionsQueryVariables = useMemo(() => {
+        const {
+            createdAtStart,
+            createdAtEnd,
+            traceId,
+            ...otherFilters
+        } = filter;
+
+        const createdAt: ExtractionFilterType['createdAt'] = {};
+        if (createdAtStart) {
+            createdAt.gte = createdAtStart;
+        }
+        if (createdAtEnd) {
+            createdAt.lte = createdAtEnd;
+        }
+
+        return {
+            pagination: {
+                offset,
+                limit,
+            },
+            order,
+            filters: {
+                ...otherFilters,
+                createdAt: isDefined(createdAt.gte)
+                || isDefined(createdAt.lte) ? createdAt : undefined,
+                traceId: traceId ? { eq: traceId } : undefined,
+            },
+        };
+    }, [
         limit,
         offset,
         filter,
+        order,
     ]);
 
     const {
@@ -110,6 +187,15 @@ function Extraction() {
             variables,
         },
     );
+
+    const {
+        data: extractionEnumsResponse,
+    } = useQuery(
+        EXTRACTION_ENUMS,
+    );
+    const sourceOptions = extractionEnumsResponse?.enums?.ExtractionDataSource;
+    const statusOptions = extractionEnumsResponse?.enums?.ExtractionDataStatus;
+
     const columns = useMemo(
         () => ([
             createStringColumn<ExtractionDataItemType, string>(
@@ -240,7 +326,57 @@ function Extraction() {
                     />
                 )}
                 filters={(
-                    <Filters />
+                    <>
+                        <DateInput
+                            name="createdAtStart"
+                            label="Created At "
+                            value={rawFilter.createdAtStart}
+                            onChange={setFilterField}
+                        />
+                        <DateInput
+                            name="createdAtEnd"
+                            label="End At"
+                            value={rawFilter.createdAtEnd}
+                            onChange={setFilterField}
+                        />
+                        <SelectInput
+                            label="Source"
+                            placeholder="All Sources"
+                            name="source"
+                            options={sourceOptions}
+                            keySelector={sourceKeySelector}
+                            labelSelector={sourceLabelSelector}
+                            value={rawFilter.source}
+                            onChange={setFilterField}
+                        />
+                        <SelectInput
+                            name="status"
+                            label="Status"
+                            placeholder="Status"
+                            options={statusOptions}
+                            keySelector={statusKeySelector}
+                            labelSelector={statusLabelSelector}
+                            value={rawFilter.status}
+                            onChange={setFilterField}
+                        />
+                        <TextInput
+                            name="traceId"
+                            label="Trace Id"
+                            placeholder="TraceId"
+                            value={rawFilter.traceId}
+                            onChange={setFilterField}
+                        />
+                        <div className={styles.filterButton}>
+                            <Button
+                                name={undefined}
+                                variant="secondary"
+                                onClick={resetFilter}
+                                disabled={!filtered}
+                            >
+                                Clear
+                            </Button>
+                        </div>
+                    </>
                 )}
             >
                 <SortContext.Provider value={sortState}>

@@ -1,5 +1,0 @@
-.filter-button {
-    display: flex;
-    gap: var(--go-ui-spacing-md);
-    align-items: flex-end;
-}
