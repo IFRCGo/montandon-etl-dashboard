@@ -1,0 +1,43 @@
+{
+  "hash": "6dbf8d4a",
+  "configHash": "301f4aef",
+  "lockfileHash": "65ed8139",
+  "browserHash": "b12c3cca",
+  "optimized": {
+    "react/jsx-dev-runtime": {
+      "src": "../../node_modules/.pnpm/react@18.2.0/node_modules/react/jsx-dev-runtime.js",
+      "file": "react_jsx-dev-runtime.js",
+      "fileHash": "3eb1e303",
+      "needsInterop": true
+    },
+    "react": {
+      "src": "../../node_modules/.pnpm/react@18.2.0/node_modules/react/index.js",
+      "file": "react.js",
+      "fileHash": "11615aca",
+      "needsInterop": true
+    },
+    "react-dom/client": {
+      "src": "../../node_modules/.pnpm/react-dom@18.2.0_react@18.2.0/node_modules/react-dom/client.js",
+      "file": "react-dom_client.js",
+      "fileHash": "2cb9ca93",
+      "needsInterop": true
+    },
+    "@apollo/client": {
+      "src": "../../node_modules/.pnpm/@apollo+client@3.12.7_@types+react@18.0.28_graphql@16.9.0_react-dom@18.2.0_react@18.2.0/node_modules/@apollo/client/index.js",
+      "file": "@apollo_client.js",
+      "fileHash": "93de71b6",
+      "needsInterop": false
+    },
+    "react-router-dom": {
+      "src": "../../node_modules/.pnpm/react-router-dom@6.11.1_react-dom@18.2.0_react@18.2.0/node_modules/react-router-dom/dist/index.js",
+      "file": "react-router-dom.js",
+      "fileHash": "aac4df91",
+      "needsInterop": false
+    }
+  },
+  "chunks": {
+    "chunk-H5YRQ6MP": {
+      "file": "chunk-H5YRQ6MP.js"
+    }
+  }
+}

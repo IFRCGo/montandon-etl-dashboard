@@ -2,6 +2,7 @@ import {
     useCallback,
     useEffect,
     useMemo,
+    useRef,
     useState,
 } from 'react';
 import {
@@ -17,8 +18,8 @@ import {
     Container,
     DateInput,
     KeyFigure,
-    PageContainer,
     Pager,
+    Popup,
     SelectInput,
     Table,
     TextInput,
@@ -111,9 +112,6 @@ const RETRIGGER = gql`
         retriggerPipeline(data: $data)
     }
 `;
-interface Props{
-    onCloseButtonClick?: () => void;
-}
 type DataSourceType = NonNullable<NonNullable<NonNullable<ExtractionEnumsQuery['enums']>['ExtractionDataSource']>[number]>;
 type TransformsDataStatusType = NonNullable<NonNullable<NonNullable<ExtractionEnumsQuery['enums']>['ExtractionDataStatus']>[number]>;
 type TransformationDataItem = NonNullable<NonNullable<NonNullable<TransformsQuery['transforms']>['results']>[number]> & {
@@ -134,6 +132,7 @@ function Transformation() {
     const alert = useAlert();
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [isRetriggerBannerVisible, setIsRetriggerBannerVisible] = useState(false);
+    const containerRef = useRef<HTMLDivElement | null>(null);
     const {
         sortState,
         limit,
@@ -462,33 +461,41 @@ function Transformation() {
                     />
                 </SortContext.Provider>
                 {isRetriggerBannerVisible && (
-                    <PageContainer className={styles.retriggerBanner}>
-                        <Container
-                            headingDescription={(
-                                <div className={styles.retriggerAction}>
-                                    <div>{`${selectedIds.length} items selected.`}</div>
-                                    <ConfirmButton
-                                        name="retrigger"
-                                        title="Retrigger"
-                                        onConfirm={handleRetriggerTransform}
+                    <div
+                        ref={containerRef}
+                    >
+                        <Popup
+                            className={styles.popup}
+                            parentRef={containerRef}
+                        >
+                            <Container
+                                actions={(
+                                    <Button
+                                        name={undefined}
+                                        variant="tertiary"
+                                        onClick={handleCloseRetriggerBanner}
                                     >
-                                        Retrigger selected items
-                                    </ConfirmButton>
-                                </div>
-                            )}
-                            actions={(
-                                <Button
-                                    name={undefined}
-                                    variant="tertiary"
-                                    onClick={handleCloseRetriggerBanner}
-                                >
-                                    <CloseLineIcon />
-                                </Button>
-                            )}
-                        />
-                    </PageContainer>
-                )}
+                                        <CloseLineIcon />
+                                    </Button>
+                                )}
+                                footerContent={(
+                                    <>
+                                        <div>{`${selectedIds.length} items selected.`}</div>
+                                        <ConfirmButton
+                                            name="retrigger"
+                                            title="Retrigger"
+                                            onConfirm={handleRetriggerTransform}
+                                        >
+                                            Retrigger selected items
+                                        </ConfirmButton>
+                                    </>
 
+                                )}
+                            />
+
+                        </Popup>
+                    </div>
+                )}
             </Container>
         </Page>
     );

@@ -2,6 +2,7 @@ import {
     useCallback,
     useEffect,
     useMemo,
+    useRef,
     useState,
 } from 'react';
 import {
@@ -17,8 +18,8 @@ import {
     Container,
     DateInput,
     KeyFigure,
-    PageContainer,
     Pager,
+    Popup,
     SelectInput,
     Table,
     TextInput,
@@ -36,6 +37,7 @@ import {
 import Page from '#components/Page';
 import {
     ExtractionEnumsQuery,
+    IdBaseFilterLookup,
     LoadQuery,
     LoadQueryVariables,
     PyStacLoadDataItemTypeEnum,
@@ -128,6 +130,7 @@ const DESC = 'DESC';
 
 function Load() {
     const alert = useAlert();
+    const containerRef = useRef<HTMLDivElement | null>(null);
     const [isRetriggerBannerVisible, setIsRetriggerBannerVisible] = useState(false);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const {
@@ -187,8 +190,8 @@ function Load() {
             filters: {
                 ...otherFilters,
                 createdAt: isDefined(createdAt.gte)
-                || isDefined(createdAt.lte) ? createdAt : undefined,
-                traceId: traceId ? { eq: traceId } : undefined,
+                    || isDefined(createdAt.lte) ? createdAt : undefined,
+                traceId: traceId ? { eq: traceId } as IdBaseFilterLookup : undefined,
             },
         };
     }, [
@@ -347,11 +350,6 @@ function Load() {
                     sortable: true,
                 },
             ),
-            createStringColumn<LoadDataItemType, string>(
-                'itemType',
-                'Item Type',
-                (item) => item.itemType.toString(),
-            ),
         ]),
         [dataWithSelection, handleCheckboxChange, handleSelectAllChange],
     );
@@ -473,31 +471,41 @@ function Load() {
                     />
                 </SortContext.Provider>
                 {isRetriggerBannerVisible && (
-                    <PageContainer className={styles.retriggerBanner}>
-                        <Container
-                            headingDescription={(
-                                <div className={styles.retriggerAction}>
-                                    <div>{`${selectedIds.length} items selected.`}</div>
-                                    <ConfirmButton
-                                        name="retrigger"
-                                        title="Retrigger"
-                                        onConfirm={handleRetriggerTransform}
+                    <div
+                        ref={containerRef}
+                    >
+                        <Popup
+                            parentRef={containerRef}
+                            className={styles.popup}
+                        >
+                            <Container
+                                className={styles.retriggerAction}
+                                actions={(
+                                    <Button
+                                        name={undefined}
+                                        variant="tertiary"
+                                        onClick={handleCloseRetriggerBanner}
                                     >
-                                        Retrigger selected items
-                                    </ConfirmButton>
-                                </div>
-                            )}
-                            actions={(
-                                <Button
-                                    name={undefined}
-                                    variant="tertiary"
-                                    onClick={handleCloseRetriggerBanner}
-                                >
-                                    <CloseLineIcon />
-                                </Button>
-                            )}
-                        />
-                    </PageContainer>
+                                        <CloseLineIcon />
+                                    </Button>
+                                )}
+                                footerContent={(
+                                    <>
+                                        <div>{`${selectedIds.length} items selected.`}</div>
+                                        <ConfirmButton
+                                            name="retrigger"
+                                            title="Retrigger"
+                                            onConfirm={handleRetriggerTransform}
+                                        >
+                                            Retrigger selected items
+                                        </ConfirmButton>
+                                    </>
+
+                                )}
+                            />
+
+                        </Popup>
+                    </div>
                 )}
             </Container>
         </Page>
