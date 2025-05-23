@@ -52,4 +52,12 @@
         gap: var(--go-ui-spacing-md);
         align-items: flex-end;
     }
+    .retrigger-banner {
+        background-color: var(--go-ui-color-gray-20);
+
+    }
+    .retrigger-Action{
+        display: flex;
+        gap: var(--go-ui-spacing-lg);
+    }
 }

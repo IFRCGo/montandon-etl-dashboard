@@ -1,14 +1,23 @@
-import { useMemo } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+} from 'react';
 import {
     gql,
+    useMutation,
     useQuery,
 } from '@apollo/client';
+import { CloseLineIcon } from '@ifrc-go/icons';
 import {
     Button,
     Checkbox,
+    ConfirmButton,
     Container,
     DateInput,
     KeyFigure,
+    PageContainer,
     Pager,
     SelectInput,
     Table,
@@ -16,7 +25,6 @@ import {
 } from '@ifrc-go/ui';
 import { SortContext } from '@ifrc-go/ui/contexts';
 import {
-    createElementColumn,
     createStringColumn,
     resolveToString,
 } from '@ifrc-go/ui/utils';
@@ -29,9 +37,12 @@ import Page from '#components/Page';
 import {
     DataStatusTypeEnum,
     ExtractionEnumsQuery,
+    RetriggerPipelineMutation,
+    RetriggerPipelineMutationVariables,
     TransformsQuery,
     TransformsQueryVariables,
 } from '#generated/types/graphql';
+import useAlert from '#hooks/useAlert';
 import useFilterState from '#hooks/useFilterState';
 
 import styles from './styles.module.css';
@@ -94,6 +105,15 @@ const FILTERS_ENUMS = gql`
         }
     }
 `;
+
+const RETRIGGER = gql`
+    mutation RetriggerPipeline($data: PipelineRetriggerInput!) {
+        retriggerPipeline(data: $data)
+    }
+`;
+interface Props{
+    onCloseButtonClick?: () => void;
+}
 type DataSourceType = NonNullable<NonNullable<NonNullable<ExtractionEnumsQuery['enums']>['ExtractionDataSource']>[number]>;
 type TransformsDataStatusType = NonNullable<NonNullable<NonNullable<ExtractionEnumsQuery['enums']>['ExtractionDataStatus']>[number]>;
 type TransformationDataItem = NonNullable<NonNullable<NonNullable<TransformsQuery['transforms']>['results']>[number]> & {
@@ -106,11 +126,14 @@ const sourceLabelSelector = (option: DataSourceType) => option.label;
 const statusKeySelector = (option: TransformsDataStatusType) => option.key;
 const statusLabelSelector = (option: TransformsDataStatusType) => option.label;
 const keySelector = (item: { id: string }) => item.id;
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 20;
 const ASC = 'ASC';
 const DESC = 'DESC';
 
 function Transformation() {
+    const alert = useAlert();
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    const [isRetriggerBannerVisible, setIsRetriggerBannerVisible] = useState(false);
     const {
         sortState,
         limit,
@@ -193,22 +216,96 @@ function Transformation() {
     } = useQuery(
         FILTERS_ENUMS,
     );
+
+    const [
+        retriggerTransform,
+    ] = useMutation<RetriggerPipelineMutation, RetriggerPipelineMutationVariables>(
+        RETRIGGER,
+        {
+            onCompleted: (response) => {
+                if (response?.retriggerPipeline) {
+                    alert.show(
+                        'Successfully Retriggered the Content',
+                        { variant: 'success' },
+                    );
+                } else {
+                    alert.show(
+                        'Failed to Retrigger the Content. Unexpected response from the server.',
+                        { variant: 'danger' },
+                    );
+                }
+                setSelectedIds([]);
+            },
+            // FIXME:  fix after error added  to serverside
+            onError: (error) => {
+                alert.show(
+                    'Failed to Retrigger the Content. Please try again later.',
+                    { variant: 'danger' },
+                );
+            },
+        },
+    );
+
+    const handleRetriggerTransform = useCallback(() => {
+        retriggerTransform({
+            variables: {
+                data: {
+                    traceId: selectedIds.map(Number),
+                },
+            },
+        });
+    }, [retriggerTransform, selectedIds]);
+    const handleCloseRetriggerBanner = () => {
+        setIsRetriggerBannerVisible(false);
+    };
+    useEffect(() => {
+        setIsRetriggerBannerVisible(selectedIds.length > 0);
+    }, [selectedIds]);
+
+    const dataWithSelection = useMemo(() => (
+        transformationResponse?.transforms.results ?? []).map((item) => ({
+        ...item,
+        isSelected: selectedIds.includes(item.id),
+    })), [transformationResponse, selectedIds]);
+
+    const handleCheckboxChange = useCallback((id: string, checked: boolean) => {
+        setSelectedIds((prev) => {
+            if (checked) return [...prev, id];
+            return prev.filter((existingId) => existingId !== id);
+        });
+    }, []);
+
+    const handleSelectAllChange = useCallback((checked: boolean) => {
+        if (!transformationResponse?.transforms.results) return;
+        const currentPageIds = transformationResponse.transforms.results.map((item) => item.id);
+        setSelectedIds(checked ? currentPageIds : []);
+    }, [transformationResponse]);
+
     const sourceOptions = filtersEnumsResponse?.enums?.ExtractionDataSource;
     const statusOptions = filtersEnumsResponse?.enums?.ExtractionDataStatus;
 
     const columns = useMemo(
         () => ([
-            createElementColumn<TransformationDataItem, string, {isSelected: boolean }>(
+            createStringColumn<TransformationDataItem, { isSelected: boolean }>(
                 'select',
-                '',
-                ({ isSelected }) => (
+                (
                     <Checkbox
-                        checked={isSelected}
-                        onChange={() => {}}
+                        name="selectAll"
+                        onChange={handleSelectAllChange}
+                        value={
+                            dataWithSelection.length > 0
+                            && dataWithSelection.every((item) => item.isSelected)
+                        }
                     />
                 ),
-                (_, item) => ({ select: item.isSelected }),
-                { columnClassName: styles.id },
+                (item) => (
+                    <Checkbox
+                        name={`select-${item.id}`}
+                        value={item.isSelected}
+                        onChange={(checked) => handleCheckboxChange(item.id, checked)}
+                    />
+                ),
+                (item: { isSelected: boolean; }) => ({ isSelected: item.isSelected }),
             ),
             createStringColumn<TransformationDataItem, string>(
                 'id',
@@ -258,7 +355,7 @@ function Transformation() {
                 },
             ),
         ]),
-        [],
+        [dataWithSelection, handleCheckboxChange, handleSelectAllChange],
     );
 
     const data = transformationResponse?.transforms.results;
@@ -357,13 +454,41 @@ function Transformation() {
                 <SortContext.Provider value={sortState}>
                     <Table
                         columns={columns}
-                        data={data}
+                        data={dataWithSelection}
                         keySelector={keySelector}
                         pending={transformationsLoading}
                         filtered={filtered}
                         errored={isDefined(transformationsError)}
                     />
                 </SortContext.Provider>
+                {isRetriggerBannerVisible && (
+                    <PageContainer className={styles.retriggerBanner}>
+                        <Container
+                            headingDescription={(
+                                <div className={styles.retriggerAction}>
+                                    <div>{`${selectedIds.length} items selected.`}</div>
+                                    <ConfirmButton
+                                        name="retrigger"
+                                        title="Retrigger"
+                                        onConfirm={handleRetriggerTransform}
+                                    >
+                                        Retrigger selected items
+                                    </ConfirmButton>
+                                </div>
+                            )}
+                            actions={(
+                                <Button
+                                    name={undefined}
+                                    variant="tertiary"
+                                    onClick={handleCloseRetriggerBanner}
+                                >
+                                    <CloseLineIcon />
+                                </Button>
+                            )}
+                        />
+                    </PageContainer>
+                )}
+
             </Container>
         </Page>
     );
