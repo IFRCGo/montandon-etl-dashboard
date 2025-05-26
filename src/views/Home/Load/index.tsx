@@ -190,7 +190,7 @@ function Load() {
             filters: {
                 ...otherFilters,
                 createdAt: isDefined(createdAt.gte)
-                    || isDefined(createdAt.lte) ? createdAt : undefined,
+                || isDefined(createdAt.lte) ? createdAt : undefined,
                 traceId: traceId ? { eq: traceId } as IdBaseFilterLookup : undefined,
             },
         };
@@ -349,6 +349,11 @@ function Load() {
                 {
                     sortable: true,
                 },
+            ),
+            createStringColumn<LoadDataItemType, string>(
+                'itemType',
+                'Item Type',
+                (item) => item.itemType.toString(),
             ),
         ]),
         [dataWithSelection, handleCheckboxChange, handleSelectAllChange],
