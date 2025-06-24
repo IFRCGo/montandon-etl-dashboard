@@ -14,9 +14,12 @@ import { CloseLineIcon } from '@ifrc-go/icons';
 import {
     Button,
     Checkbox,
+    type CheckboxProps,
     ConfirmButton,
     Container,
     DateInput,
+    DateOutput,
+    type DateOutputProps,
     KeyFigure,
     Pager,
     Popup,
@@ -26,6 +29,7 @@ import {
 } from '@ifrc-go/ui';
 import { SortContext } from '@ifrc-go/ui/contexts';
 import {
+    createElementColumn,
     createStringColumn,
     resolveToString,
 } from '@ifrc-go/ui/utils';
@@ -36,15 +40,18 @@ import {
 
 import Page from '#components/Page';
 import {
-    DataStatusTypeEnum,
-    ExtractionEnumsQuery,
-    RetriggerPipelineMutation,
-    RetriggerPipelineMutationVariables,
-    TransformsQuery,
-    TransformsQueryVariables,
+    type DataStatusTypeEnum,
+    type FilterEnumsQuery,
+    type RetriggerPipelineMutation,
+    type RetriggerPipelineMutationVariables,
+    type SourceTypeEnum,
+    type TransformsQuery,
+    type TransformsQueryVariables,
 } from '#generated/types/graphql';
 import useAlert from '#hooks/useAlert';
 import useFilterState from '#hooks/useFilterState';
+import getEnumLabelFromValue from '#utils/common';
+import { FILTER_ENUMS } from '#utils/queries';
 
 import styles from './styles.module.css';
 
@@ -60,13 +67,14 @@ const TRANSFORMS = gql`
                 offset
             }
             results {
-                createdAt
-                endedAt
                 id
-                metadata
+                createdAt
                 startedAt
+                endedAt
+                metadata
                 status
                 traceId
+                source
                 extraction {
                     pk
                 }
@@ -88,32 +96,13 @@ const TRANSFORMS = gql`
     }
 `;
 
-const FILTERS_ENUMS = gql`
-    query ExtractionEnums {
-        enums {
-            ExtractionDataSource {
-                key
-                label
-            }
-            ExtractionDataSourceValidationStatus {
-                key
-                label
-            }
-            ExtractionDataStatus {
-                key
-                label
-            }
-        }
-    }
-`;
-
 const RETRIGGER = gql`
     mutation RetriggerPipeline($data: PipelineRetriggerInput!) {
         retriggerPipeline(data: $data)
     }
 `;
-type DataSourceType = NonNullable<NonNullable<NonNullable<ExtractionEnumsQuery['enums']>['ExtractionDataSource']>[number]>;
-type TransformsDataStatusType = NonNullable<NonNullable<NonNullable<ExtractionEnumsQuery['enums']>['ExtractionDataStatus']>[number]>;
+type DataSourceType = NonNullable<NonNullable<NonNullable<FilterEnumsQuery['enums']>['ExtractionDataSource']>[number]>;
+type TransformsDataStatusType = NonNullable<NonNullable<NonNullable<FilterEnumsQuery['enums']>['ExtractionDataStatus']>[number]>;
 type TransformationDataItem = NonNullable<NonNullable<NonNullable<TransformsQuery['transforms']>['results']>[number]> & {
     isSelected: boolean;
 };
@@ -148,7 +137,7 @@ function Transformation() {
         createdAtStart?: string;
         createdAtEnd?: string;
         traceId?: string;
-        source?: DataSourceType
+        source?: SourceTypeEnum;
         status?: DataStatusTypeEnum;
       }>({
           filter: {},
@@ -190,7 +179,7 @@ function Transformation() {
                 ...otherFilters,
                 createdAt: isDefined(createdAt.gte)
                 || isDefined(createdAt.lte) ? createdAt : undefined,
-                traceId: traceId ? { eq: traceId } : undefined,
+                traceId: traceId ? { exact: traceId } : undefined,
             },
         };
     }, [
@@ -211,9 +200,9 @@ function Transformation() {
         },
     );
     const {
-        data: filtersEnumsResponse,
+        data: filterEnumsResponse,
     } = useQuery(
-        FILTERS_ENUMS,
+        FILTER_ENUMS,
     );
 
     const [
@@ -236,7 +225,7 @@ function Transformation() {
                 setSelectedIds([]);
             },
             // FIXME:  fix after error added  to serverside
-            onError: (error) => {
+            onError: () => {
                 alert.show(
                     'Failed to Retrigger the Content. Please try again later.',
                     { variant: 'danger' },
@@ -274,87 +263,111 @@ function Transformation() {
         });
     }, []);
 
+    /*
     const handleSelectAllChange = useCallback((checked: boolean) => {
         if (!transformationResponse?.transforms.results) return;
         const currentPageIds = transformationResponse.transforms.results.map((item) => item.id);
         setSelectedIds(checked ? currentPageIds : []);
     }, [transformationResponse]);
+    */
 
-    const sourceOptions = filtersEnumsResponse?.enums?.ExtractionDataSource;
-    const statusOptions = filtersEnumsResponse?.enums?.ExtractionDataStatus;
+    const sourceOptions = filterEnumsResponse?.enums?.ExtractionDataSource;
+    const statusOptions = filterEnumsResponse?.enums?.ExtractionDataStatus;
 
     const columns = useMemo(
         () => ([
-            createStringColumn<TransformationDataItem, { isSelected: boolean }>(
+            createElementColumn<TransformationDataItem, string, CheckboxProps<string>>(
                 'select',
-                (
-                    <Checkbox
-                        name="selectAll"
-                        onChange={handleSelectAllChange}
-                        value={
-                            dataWithSelection.length > 0
-                            && dataWithSelection.every((item) => item.isSelected)
-                        }
-                    />
-                ),
-                (item) => (
-                    <Checkbox
-                        name={`select-${item.id}`}
-                        value={item.isSelected}
-                        onChange={(checked) => handleCheckboxChange(item.id, checked)}
-                    />
-                ),
-                (item: { isSelected: boolean; }) => ({ isSelected: item.isSelected }),
+                '',
+                /*
+                Checkbox,
+                (_, item) => ({
+                    name: 'select-all',
+                    onChange: handleSelectAllChange,
+                    value: dataWithSelection.length > 0
+                        && dataWithSelection.every(() => item.isSelected),
+                }),
+                */
+                Checkbox,
+                (id, item) => ({
+                    name: `select-${id}`,
+                    value: item.isSelected,
+                    onChange: (checked) => handleCheckboxChange(item.id, checked),
+                }),
             ),
             createStringColumn<TransformationDataItem, string>(
                 'id',
-                'Id',
+                'Transform Id',
                 (item) => item.id,
             ),
             createStringColumn<TransformationDataItem, string>(
-                'createdAt',
-                'Created at',
-                (item) => item.createdAt,
+                'source',
+                'Source',
+                (item) => getEnumLabelFromValue(
+                    item.source,
+                    sourceOptions ?? [],
+                ),
                 {
                     sortable: true,
                 },
-            ),
-            createStringColumn<TransformationDataItem, string>(
-                'endedAt',
-                'End at',
-                (item) => item.endedAt,
-                {
-                    sortable: true,
-                },
-            ),
-            createStringColumn<TransformationDataItem, string>(
-                'extraction',
-                'Extraction',
-                (item) => item.extraction?.pk,
             ),
             createStringColumn<TransformationDataItem, string>(
                 'status',
                 'Status',
-                (item) => item.status,
+                (item) => getEnumLabelFromValue(
+                    item.status,
+                    statusOptions ?? [],
+                ),
                 {
                     sortable: true,
                 },
+            ),
+            createElementColumn<TransformationDataItem, string, DateOutputProps>(
+                'createdAt',
+                'Created at',
+                DateOutput,
+                (_, item) => ({
+                    value: item.createdAt,
+                    format: 'MM/dd/yyyy hh:mm:ss',
+                    sortable: true,
+                }),
+            ),
+            createElementColumn<TransformationDataItem, string, DateOutputProps>(
+                'startedAt',
+                'Started at',
+                DateOutput,
+                (_, item) => ({
+                    value: item.startedAt,
+                    format: 'MM/dd/yyyy hh:mm:ss',
+                    sortable: true,
+                }),
+            ),
+            createElementColumn<TransformationDataItem, string, DateOutputProps>(
+                'endedAt',
+                'End at',
+                DateOutput,
+                (_, item) => ({
+                    value: item.endedAt,
+                    format: 'MM/dd/yyyy hh:mm:ss',
+                    sortable: true,
+                }),
+            ),
+            createStringColumn<TransformationDataItem, string>(
+                'extraction',
+                'Extraction Id',
+                (item) => item.extraction?.pk,
             ),
             createStringColumn<TransformationDataItem, string>(
                 'traceId',
                 'Trace Id',
                 (item) => item.traceId,
             ),
-            createStringColumn<TransformationDataItem, string>(
-                'startedAt',
-                'Started at',
-                (item) => item.startedAt,
-                {
-                    sortable: true,
-                },
-            ),
         ]),
-        [dataWithSelection, handleCheckboxChange, handleSelectAllChange],
+        [
+            handleCheckboxChange,
+            statusOptions,
+            sourceOptions,
+        ],
     );
 
     const data = transformationResponse?.transforms.results;

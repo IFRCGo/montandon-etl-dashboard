@@ -1,5 +1,4 @@
 .extraction {
-
     .main-section {
         display: flex;
         flex-direction: column;
@@ -19,24 +18,11 @@
             height: 100%;
         }
     }
-    .extraction-table{
+    .extraction-table {
         overflow: auto;
 
-        .id{
-            width:0%;
-            min-width: 5rem;
-        }
-        .revision-id{
-            width: 0%;
-            min-width: 7rem;
-        }
-        .url{
-            min-width:14rem;
-        }
 
         .actions {
-            width: 0;
-            min-width: 10rem;
             text-decoration: none;
             color: var(--go-ui-color-text);
             font-weight: var(--go-ui-font-weight-medium);

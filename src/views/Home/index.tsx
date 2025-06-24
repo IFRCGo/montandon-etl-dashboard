@@ -11,7 +11,7 @@ import Page from '#components/Page';
 
 import Extraction from './Extraction';
 import Load from './Load';
-import Transformation from './Transforms';
+import Transformation from './Transform';
 
 import styles from './styles.module.css';
 
