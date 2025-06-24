@@ -6,17 +6,6 @@ import {
     useState,
 } from 'react';
 import {
-    Bar,
-    BarChart,
-    CartesianGrid,
-    Legend,
-    ResponsiveContainer,
-    Tooltip,
-    XAxis,
-    YAxis,
-} from 'recharts';
-
-import {
     gql,
     useMutation,
     useQuery,
@@ -25,6 +14,7 @@ import { CloseLineIcon } from '@ifrc-go/icons';
 import {
     Button,
     Checkbox,
+    type CheckboxProps,
     ConfirmButton,
     Container,
     DateInput,
@@ -50,14 +40,17 @@ import {
 import Page from '#components/Page';
 import {
     type DataStatusTypeEnum,
-    type ExtractionEnumsQuery,
     type ExtractionsQuery,
     type ExtractionsQueryVariables,
+    type FilterEnumsQuery,
     type RetriggerPipelineMutation,
     type RetriggerPipelineMutationVariables,
+    type SourceTypeEnum,
 } from '#generated/types/graphql';
 import useAlert from '#hooks/useAlert';
 import useFilterState from '#hooks/useFilterState';
+import getEnumLabelFromValue from '#utils/common';
+import { FILTER_ENUMS } from '#utils/queries';
 
 import styles from './styles.module.css';
 
@@ -66,15 +59,18 @@ const EXTRACTIONS = gql`
         $pagination: OffsetPaginationInput,
         $filters: ExtractionDataFilter,
     ) {
-        extractions(filters: $filters, pagination: $pagination) {
+        extractions(
+            filters: $filters,
+            pagination: $pagination
+        ) {
             totalCount
             pageInfo {
                 limit
                 offset
             }
             results {
-                hazardType
                 id
+                hazardType
                 parentId
                 respCode
                 respDataType
@@ -101,33 +97,14 @@ const EXTRACTIONS = gql`
     }
 `;
 
-const EXTRACTION_ENUMS = gql`
-    query ExtractionEnums {
-        enums {
-            ExtractionDataSource {
-                key
-                label
-            }
-            ExtractionDataSourceValidationStatus {
-                key
-                label
-            }
-            ExtractionDataStatus {
-                key
-                label
-            }
-        }
-    }
-`;
-
 const RETRIGGER = gql`
     mutation RetriggerPipeline($data: PipelineRetriggerInput!) {
         retriggerPipeline(data: $data)
     }
 `;
 
-type DataSourceType = NonNullable<NonNullable<NonNullable<ExtractionEnumsQuery['enums']>['ExtractionDataSource']>[number]>;
-type ExtractionDataStatusType = NonNullable<NonNullable<NonNullable<ExtractionEnumsQuery['enums']>['ExtractionDataStatus']>[number]>;
+type DataSourceType = NonNullable<NonNullable<NonNullable<FilterEnumsQuery['enums']>['ExtractionDataSource']>[number]>;
+type ExtractionDataStatusType = NonNullable<NonNullable<NonNullable<FilterEnumsQuery['enums']>['ExtractionDataStatus']>[number]>;
 type ExtractionDataItemType = NonNullable<NonNullable<NonNullable<ExtractionsQuery['extractions']>['results']>[number]> & {
     isSelected: boolean;
 };
@@ -162,12 +139,12 @@ function Extraction() {
         createdAtStart?: string;
         createdAtEnd?: string;
         traceId?: string;
-        source?: DataSourceType;
+        source?: SourceTypeEnum;
         status?: DataStatusTypeEnum;
-      }>({
-          filter: {},
-          pageSize: PAGE_SIZE,
-      });
+    }>({
+        filter: {},
+        pageSize: PAGE_SIZE,
+    });
 
     const order = useMemo(() => {
         if (isNotDefined(sortState.sorting)) {
@@ -203,8 +180,8 @@ function Extraction() {
             filters: {
                 ...otherFilters,
                 createdAt: isDefined(createdAt.gte)
-                || isDefined(createdAt.lte) ? createdAt : undefined,
-                traceId: traceId ? { eq: traceId } : undefined,
+                    || isDefined(createdAt.lte) ? createdAt : undefined,
+                traceId: traceId ? { exact: traceId } : undefined,
             },
         };
     }, [
@@ -226,9 +203,9 @@ function Extraction() {
     );
 
     const {
-        data: extractionEnumsResponse,
-    } = useQuery(
-        EXTRACTION_ENUMS,
+        data: filterEnumsResponse,
+    } = useQuery<FilterEnumsQuery>(
+        FILTER_ENUMS,
     );
 
     const [
@@ -251,7 +228,7 @@ function Extraction() {
                 setSelectedIds([]);
             },
             // FIXME:  fix after error added  to server side
-            onError: (error) => {
+            onError: () => {
                 alert.show(
                     'Failed to Retrigger the Content. Please try again later.',
                     { variant: 'danger' },
@@ -291,102 +268,60 @@ function Extraction() {
         });
     }, []);
 
+    /*
     const handleSelectAllChange = useCallback((checked: boolean) => {
         if (!extractionsResponse?.extractions?.results) return;
         const currentPageIds = extractionsResponse.extractions.results.map((item) => item.id);
         setSelectedIds(checked ? currentPageIds : []);
     }, [extractionsResponse]);
+    */
 
-    const sourceOptions = extractionEnumsResponse?.enums?.ExtractionDataSource;
-    const statusOptions = extractionEnumsResponse?.enums?.ExtractionDataStatus;
-
-    const extractionDataBySource = extractionsResponse?.statusSourceCountsExtraction;
+    const sourceOptions = filterEnumsResponse?.enums?.ExtractionDataSource;
+    const statusOptions = filterEnumsResponse?.enums?.ExtractionDataStatus;
 
     const columns = useMemo(
         () => ([
-            createStringColumn<ExtractionDataItemType, { isSelected: boolean }>(
+            createElementColumn<ExtractionDataItemType, string, CheckboxProps<string>>(
                 'select',
-                (
-                    <Checkbox
-                        name="selectAll"
-                        onChange={handleSelectAllChange}
-                        value={
-                            dataWithSelection.length > 0
-                            && dataWithSelection.every((item) => item.isSelected)
-                        }
-                    />
-                ),
-                (item) => (
-                    <Checkbox
-                        name={`select-${item.id}`}
-                        value={item.isSelected}
-                        onChange={(checked) => handleCheckboxChange(item.id, checked)}
-                    />
-                ),
-                (item: { isSelected: boolean; }) => ({ isSelected: item.isSelected }),
+                '',
+                /*
+                Checkbox,
+                (_, item) => ({
+                    name: 'select-all',
+                    onChange: handleSelectAllChange,
+                    value: dataWithSelection.length > 0
+                        && dataWithSelection.every(() => item.isSelected),
+                }),
+                */
+                Checkbox,
+                (id, item) => ({
+                    name: `select-${id}`,
+                    value: item.isSelected,
+                    onChange: (checked) => handleCheckboxChange(item.id, checked),
+                }),
             ),
             createStringColumn<ExtractionDataItemType, string>(
                 'id',
-                'Id',
+                'Extraction Id',
                 (item) => item.id,
                 { columnClassName: styles.id },
             ),
             createStringColumn<ExtractionDataItemType, string>(
-                'hazardType',
-                'Hazard Type',
-                (item) => item.hazardType,
-                {
-                    sortable: true,
-                },
-            ),
-            createStringColumn<ExtractionDataItemType, string>(
-                'status',
-                'Status',
-                (item) => item.status,
-                {
-                    sortable: true,
-                },
-            ),
-            createStringColumn<ExtractionDataItemType, string>(
                 'source',
                 'Source',
-                (item) => item.source,
+                (item) => getEnumLabelFromValue(
+                    item.source,
+                    sourceOptions ?? [],
+                ),
                 {
                     sortable: true,
                 },
-            ),
-            createStringColumn<ExtractionDataItemType, string>(
-                'sourceValidationStatus',
-                'Source validation Status',
-                (item) => item.sourceValidationStatus,
-                {
-                    sortable: true,
-                },
-            ),
-            createNumberColumn<ExtractionDataItemType, string>(
-                'respCode',
-                'Response Code',
-                (item) => item.respCode,
             ),
             createStringColumn<ExtractionDataItemType, string>(
                 'respDataType',
                 'Response data Type',
                 (item) => item.respDataType,
                 { sortable: true },
-            ),
-            createStringColumn<ExtractionDataItemType, string>(
-                'parentId',
-                'Parent Id',
-                (item) => item.parentId,
-            ),
-            createStringColumn<ExtractionDataItemType, string>(
-                'traceId',
-                'Trace Id',
-                (item) => item.traceId,
-                {
-                    sortable: true,
-                    columnClassName: styles.revisionId,
-                },
             ),
             createElementColumn<ExtractionDataItemType, string, { url: string }>(
                 'url',
@@ -404,8 +339,65 @@ function Extraction() {
                 (_, item) => ({ url: item.url }),
                 { columnClassName: styles.url },
             ),
+            createStringColumn<ExtractionDataItemType, string>(
+                'sourceValidationStatus',
+                'Source validation Status',
+                (item) => getEnumLabelFromValue(
+                    item.sourceValidationStatus,
+                    filterEnumsResponse?.enums?.ExtractionDataSourceValidationStatus ?? [],
+                ),
+                {
+                    sortable: true,
+                },
+            ),
+            /*
+                TODO: IF hazard types are saved in the server, show this.
+                createStringColumn<ExtractionDataItemType, string>(
+                    'hazardType',
+                    'Hazard Type',
+                    (item) => item.hazardType,
+                    {
+                        sortable: true,
+                    },
+                ),
+            */
+            createStringColumn<ExtractionDataItemType, string>(
+                'status',
+                'Status',
+                (item) => getEnumLabelFromValue(
+                    item.status,
+                    statusOptions ?? [],
+                ),
+                {
+                    sortable: true,
+                },
+            ),
+            createStringColumn<ExtractionDataItemType, string>(
+                'parentId',
+                'Parent Id',
+                (item) => item.parentId,
+            ),
+            createStringColumn<ExtractionDataItemType, string>(
+                'traceId',
+                'Trace Id',
+                (item) => item.traceId,
+                {
+                    sortable: true,
+                    columnClassName: styles.revisionId,
+                },
+            ),
+            createNumberColumn<ExtractionDataItemType, string>(
+                'respCode',
+                'Response Code',
+                (item) => item.respCode,
+            ),
         ]),
-        [dataWithSelection, handleCheckboxChange, handleSelectAllChange],
+        [
+            handleCheckboxChange,
+            filterEnumsResponse?.enums?.ExtractionDataSourceValidationStatus,
+            sourceOptions,
+            statusOptions,
+        ],
     );
 
     const data = extractionsResponse?.extractions?.results;
@@ -506,31 +498,6 @@ function Extraction() {
                     </>
                 )}
             >
-                <div className={styles.charts}>
-                    <ResponsiveContainer width="100%" height="100%">
-                        <BarChart
-                            width={500}
-                            height={300}
-                            data={extractionDataBySource}
-                            margin={{
-                                top: 20,
-                                right: 30,
-                                left: 20,
-                                bottom: 5,
-                            }}
-                        >
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="source" />
-                            <YAxis />
-                            <Tooltip />
-                            <Legend />
-                            <Bar dataKey="failedCount" stackId="a" fill="#a56eff" />
-                            <Bar dataKey="inProgressCount" stackId="b" fill="#009d9a" />
-                            <Bar dataKey="pendingCount" stackId="c" fill="#002d9c" />
-                            <Bar dataKey="successCount" stackId="d" fill="#fa4d56" />
-                        </BarChart>
-                    </ResponsiveContainer>
-                </div>
                 <SortContext.Provider value={sortState}>
                     <Table
                         columns={columns}
