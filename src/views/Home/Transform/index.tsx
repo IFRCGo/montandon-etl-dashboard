@@ -2,7 +2,6 @@ import {
     useCallback,
     useEffect,
     useMemo,
-    useRef,
     useState,
 } from 'react';
 import {
@@ -10,19 +9,16 @@ import {
     useMutation,
     useQuery,
 } from '@apollo/client';
-import { CloseLineIcon } from '@ifrc-go/icons';
 import {
     Button,
     Checkbox,
     type CheckboxProps,
-    ConfirmButton,
     Container,
     DateInput,
     DateOutput,
     type DateOutputProps,
     KeyFigure,
     Pager,
-    Popup,
     SelectInput,
     Table,
     TextInput,
@@ -48,12 +44,13 @@ import {
     YAxis,
 } from 'recharts';
 
+import BulkRetriggerAction from '#components/BulkRetriggerAction';
 import Page from '#components/Page';
 import {
     type DataStatusTypeEnum,
     type FilterEnumsQuery,
-    type RetriggerPipelineMutation,
-    type RetriggerPipelineMutationVariables,
+    type RetriggerTransformsMutation,
+    type RetriggerTransformsMutationVariables,
     type SourceTypeEnum,
     type TransformsQuery,
     type TransformsQueryVariables,
@@ -118,9 +115,17 @@ const TRANSFORMS = gql`
     }
 `;
 
-const RETRIGGER = gql`
-    mutation RetriggerPipeline($data: PipelineRetriggerInput!) {
-        retriggerPipeline(data: $data)
+const RETRIGGER_TRANSFORMS = gql`
+    mutation RetriggerTransforms(
+        $transformIds: [ID!]!
+    ){
+        retriggerTransform(data: {
+            transformIds: $transformIds
+        }) {
+            errors
+            ok
+            result
+        }
     }
 `;
 type DataSourceType = NonNullable<NonNullable<NonNullable<FilterEnumsQuery['enums']>['ExtractionDataSource']>[number]>;
@@ -138,12 +143,12 @@ const keySelector = (item: { id: string }) => item.id;
 const PAGE_SIZE = 20;
 const ASC = 'ASC';
 const DESC = 'DESC';
+const emptyArray: [] = [];
 
 function Transformation() {
     const alert = useAlert();
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [isRetriggerBannerVisible, setIsRetriggerBannerVisible] = useState(false);
-    const containerRef = useRef<HTMLDivElement | null>(null);
     const {
         sortState,
         limit,
@@ -229,11 +234,11 @@ function Transformation() {
 
     const [
         retriggerTransform,
-    ] = useMutation<RetriggerPipelineMutation, RetriggerPipelineMutationVariables>(
-        RETRIGGER,
+    ] = useMutation<RetriggerTransformsMutation, RetriggerTransformsMutationVariables>(
+        RETRIGGER_TRANSFORMS,
         {
             onCompleted: (response) => {
-                if (response?.retriggerPipeline) {
+                if (response?.retriggerTransform) {
                     alert.show(
                         'Successfully Retriggered the Content',
                         { variant: 'success' },
@@ -259,15 +264,16 @@ function Transformation() {
     const handleRetriggerTransform = useCallback(() => {
         retriggerTransform({
             variables: {
-                data: {
-                    traceId: selectedIds.map(Number),
-                },
+                transformIds: selectedIds,
             },
         });
     }, [retriggerTransform, selectedIds]);
-    const handleCloseRetriggerBanner = () => {
+
+    const handleRetriggerActionClose = () => {
         setIsRetriggerBannerVisible(false);
+        setSelectedIds(emptyArray);
     };
+
     useEffect(() => {
         setIsRetriggerBannerVisible(selectedIds.length > 0);
     }, [selectedIds]);
@@ -304,7 +310,6 @@ function Transformation() {
                 'select',
                 '',
                 /*
-                Checkbox,
                 (_, item) => ({
                     name: 'select-all',
                     onChange: handleSelectAllChange,
@@ -317,6 +322,7 @@ function Transformation() {
                     name: `select-${id}`,
                     value: item.isSelected,
                     onChange: (checked) => handleCheckboxChange(item.id, checked),
+                    disabled: item.status !== 'FAILED',
                 }),
             ),
             createStringColumn<TransformationDataItem, string>(
@@ -531,40 +537,11 @@ function Transformation() {
                     />
                 </SortContext.Provider>
                 {isRetriggerBannerVisible && (
-                    <div
-                        ref={containerRef}
-                    >
-                        <Popup
-                            className={styles.popup}
-                            parentRef={containerRef}
-                        >
-                            <Container
-                                actions={(
-                                    <Button
-                                        name={undefined}
-                                        variant="tertiary"
-                                        onClick={handleCloseRetriggerBanner}
-                                    >
-                                        <CloseLineIcon />
-                                    </Button>
-                                )}
-                                footerContent={(
-                                    <>
-                                        <div>{`${selectedIds.length} items selected.`}</div>
-                                        <ConfirmButton
-                                            name="retrigger"
-                                            title="Retrigger"
-                                            onConfirm={handleRetriggerTransform}
-                                        >
-                                            Retrigger selected items
-                                        </ConfirmButton>
-                                    </>
-
-                                )}
-                            />
-
-                        </Popup>
-                    </div>
+                    <BulkRetriggerAction
+                        onSelectionClear={handleRetriggerActionClose}
+                        onRetriggerConfirm={handleRetriggerTransform}
+                        selectedItemsCount={selectedIds.length}
+                    />
                 )}
             </Container>
         </Page>

@@ -1,0 +1,13 @@
+.retrigger-action {
+    position: fixed;
+    padding: var(--go-ui-spacing-sm) var(--go-ui-spacing-lg);
+    background-color: var(--go-ui-color-gray-10);
+    width: calc(100% - (2 * var(--go-ui-spacing-2xl)));
+    border: 1px solid var(--go-ui-color-red-10);
+    border-radius: var(--go-ui-border-radius-lg);
+    left: 50%;
+    bottom: 35px;
+    transform: translate(-50%, 0%);
+    z-index: 1;
+    gap: var(--go-ui-spacing-sm);
+}

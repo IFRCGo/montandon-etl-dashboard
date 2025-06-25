@@ -2,7 +2,6 @@ import {
     useCallback,
     useEffect,
     useMemo,
-    useRef,
     useState,
 } from 'react';
 import {
@@ -10,17 +9,14 @@ import {
     useMutation,
     useQuery,
 } from '@apollo/client';
-import { CloseLineIcon } from '@ifrc-go/icons';
 import {
     Button,
     Checkbox,
     type CheckboxProps,
-    ConfirmButton,
     Container,
     DateInput,
     KeyFigure,
     Pager,
-    Popup,
     SelectInput,
     Table,
     TextInput,
@@ -47,14 +43,15 @@ import {
     YAxis,
 } from 'recharts';
 
+import BulkRetriggerAction from '#components/BulkRetriggerAction';
 import Page from '#components/Page';
 import {
     type DataStatusTypeEnum,
     type ExtractionsQuery,
     type ExtractionsQueryVariables,
     type FilterEnumsQuery,
-    type RetriggerPipelineMutation,
-    type RetriggerPipelineMutationVariables,
+    type RetriggerExtractionsMutation,
+    type RetriggerExtractionsMutationVariables,
     type SourceTypeEnum,
 } from '#generated/types/graphql';
 import useAlert from '#hooks/useAlert';
@@ -110,12 +107,12 @@ const EXTRACTIONS = gql`
     }
 `;
 
-const RETRIGGER = gql`
-    mutation RetriggerPipeline(
-        $traceIds: [Int!]!
+const RETRIGGER_EXTRACTIONS = gql`
+    mutation RetriggerExtractions (
+        $traceIds: [ID!]!
     ) {
         retriggerPipeline(data: {
-            traceId: $traceIds
+            traceIds: $traceIds
         }) {
             errors
             ok
@@ -139,11 +136,11 @@ const keySelector = (item: { id: string }) => item.id;
 const PAGE_SIZE = 20;
 const ASC = 'ASC';
 const DESC = 'DESC';
+const emptyArray: [] = [];
 
 function Extraction() {
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [isRetriggerBannerVisible, setIsRetriggerBannerVisible] = useState(false);
-    const containerRef = useRef<HTMLDivElement | null>(null);
     const alert = useAlert();
     const {
         sortState,
@@ -230,9 +227,9 @@ function Extraction() {
     );
 
     const [
-        retriggerTransform,
-    ] = useMutation<RetriggerPipelineMutation, RetriggerPipelineMutationVariables>(
-        RETRIGGER,
+        retriggerExtractions,
+    ] = useMutation<RetriggerExtractionsMutation, RetriggerExtractionsMutationVariables>(
+        RETRIGGER_EXTRACTIONS,
         {
             onCompleted: (response) => {
                 if (response?.retriggerPipeline) {
@@ -258,16 +255,17 @@ function Extraction() {
         },
     );
 
-    const handleRetriggerTransform = useCallback(() => {
-        retriggerTransform({
+    const handleRetriggerExtraction = useCallback(() => {
+        retriggerExtractions({
             variables: {
-                traceIds: selectedIds.map(Number),
+                traceIds: selectedIds,
             },
         });
-    }, [retriggerTransform, selectedIds]);
+    }, [retriggerExtractions, selectedIds]);
 
-    const handleCloseRetriggerBanner = () => {
+    const handleRetriggerActionClose = () => {
         setIsRetriggerBannerVisible(false);
+        setSelectedIds(emptyArray);
     };
 
     useEffect(() => {
@@ -319,6 +317,7 @@ function Extraction() {
                     name: `select-${id}`,
                     value: item.isSelected,
                     onChange: (checked) => handleCheckboxChange(item.id, checked),
+                    disabled: item.status !== 'FAILED',
                 }),
             ),
             createStringColumn<ExtractionDataItemType, string>(
@@ -390,6 +389,14 @@ function Extraction() {
                 ),
                 {
                     sortable: true,
+                },
+            ),
+            createNumberColumn<ExtractionDataItemType, number>(
+                'fileSize',
+                'File Size',
+                (item) => item.filesize,
+                {
+                    suffix: ' KB',
                 },
             ),
             createStringColumn<ExtractionDataItemType, string>(
@@ -555,41 +562,11 @@ function Extraction() {
                     />
                 </SortContext.Provider>
                 {isRetriggerBannerVisible && (
-                    <div
-                        ref={containerRef}
-                    >
-                        <Popup
-                            parentRef={containerRef}
-                            className={styles.popup}
-                        >
-                            <Container
-                                className={styles.retriggerAction}
-                                actions={(
-                                    <Button
-                                        name={undefined}
-                                        variant="tertiary"
-                                        onClick={handleCloseRetriggerBanner}
-                                    >
-                                        <CloseLineIcon />
-                                    </Button>
-                                )}
-                                footerContent={(
-                                    <>
-                                        <div>{`${selectedIds.length} items selected.`}</div>
-                                        <ConfirmButton
-                                            name="retrigger"
-                                            title="Retrigger"
-                                            onConfirm={handleRetriggerTransform}
-                                        >
-                                            Retrigger selected items
-                                        </ConfirmButton>
-                                    </>
-
-                                )}
-                            />
-
-                        </Popup>
-                    </div>
+                    <BulkRetriggerAction
+                        onSelectionClear={handleRetriggerActionClose}
+                        onRetriggerConfirm={handleRetriggerExtraction}
+                        selectedItemsCount={selectedIds.length}
+                    />
                 )}
             </Container>
         </Page>

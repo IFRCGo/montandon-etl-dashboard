@@ -5,6 +5,7 @@ import {
 } from '@apollo/client';
 import {
     Button,
+    ConfirmButton,
     Container,
     DateInput,
     DateOutput,
@@ -65,13 +66,16 @@ const LOADS = gql`
                 offset
             }
             results {
+                collectionId
                 createdAt
                 id
                 itemType
                 modifiedAt
+                source
                 status
                 traceId
                 transformId
+                item
             }
         }
         statusSourceCountsPystac {
@@ -200,6 +204,14 @@ function Load() {
 
     const columns = useMemo(
         () => ([
+            createStringColumn<LoadDataItemType, string>(
+                'collectionId',
+                'Collection Id',
+                (item) => item.collectionId,
+                {
+                    sortable: true,
+                },
+            ),
             createStringColumn<LoadDataItemType, string>(
                 'id',
                 'Load Id',
