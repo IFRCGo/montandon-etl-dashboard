@@ -6,6 +6,11 @@
         gap: var(--go-ui-spacing-xl);
     }
 
+    .figures {
+        display: flex;
+        flex-direction: column;
+        gap: var(--go-ui-spacing-md);
+
         .key-figures {
             display: grid;
             grid-gap: var(--go-ui-spacing-lg);
@@ -18,21 +23,23 @@
                 height: 100%;
             }
         }
+    }
 
-        .transform-table {
-            .content {
-                display: flex;
-                flex-direction: column;
-                gap: var(--go-ui-spacing-md);
-            }
-        }
-        .filter-button {
+    .transform-table {
+        .content {
             display: flex;
+            flex-direction: column;
             gap: var(--go-ui-spacing-md);
-            align-items: flex-end;
         }
+    }
 
-        .popup {
-            padding: var(--go-ui-spacing-lg) var(--go-ui-spacing-md);
-        }
+    .filter-button {
+        display: flex;
+        gap: var(--go-ui-spacing-md);
+        align-items: flex-end;
+    }
+
+    .popup {
+        padding: var(--go-ui-spacing-lg) var(--go-ui-spacing-md);
+    }
 }
