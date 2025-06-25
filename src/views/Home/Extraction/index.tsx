@@ -53,6 +53,7 @@ import getEnumLabelFromValue from '#utils/common';
 import { FILTER_ENUMS } from '#utils/queries';
 
 import styles from './styles.module.css';
+import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 const EXTRACTIONS = gql`
     query Extractions (
@@ -257,9 +258,9 @@ function Extraction() {
 
     const dataWithSelection = useMemo(() => (
         extractionsResponse?.extractions.results ?? []).map((item) => ({
-        ...item,
-        isSelected: selectedIds.includes(item.id),
-    })), [extractionsResponse, selectedIds]);
+            ...item,
+            isSelected: selectedIds.includes(item.id),
+        })), [extractionsResponse, selectedIds]);
 
     const handleCheckboxChange = useCallback((id: string, checked: boolean) => {
         setSelectedIds((prev) => {
@@ -278,6 +279,8 @@ function Extraction() {
 
     const sourceOptions = filterEnumsResponse?.enums?.ExtractionDataSource;
     const statusOptions = filterEnumsResponse?.enums?.ExtractionDataStatus;
+
+    const extractionDataBySource = extractionsResponse?.statusSourceCountsExtraction;
 
     const columns = useMemo(
         () => ([
@@ -436,6 +439,7 @@ function Extraction() {
                 heading={heading}
                 withHeaderBorder
                 className={styles.extractionTable}
+                childrenContainerClassName={styles.content}
                 footerActions={isDefined(data) && (
                     <Pager
                         activePage={page}
@@ -498,6 +502,30 @@ function Extraction() {
                     </>
                 )}
             >
+                <ResponsiveContainer
+                    width="100%"
+                    height={300}
+                >
+                    <BarChart
+                        data={extractionDataBySource}
+                        margin={{
+                            top: 20,
+                            right: 30,
+                            left: 20,
+                            bottom: 5,
+                        }}
+                    >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="source" />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey="failedCount" stackId="a" fill="#a56eff" />
+                        <Bar dataKey="inProgressCount" stackId="a" fill="#009d9a" />
+                        <Bar dataKey="pendingCount" stackId="a" fill="#002d9c" />
+                        <Bar dataKey="successCount" stackId="a" fill="#fa4d56" />
+                    </BarChart>
+                </ResponsiveContainer>
                 <SortContext.Provider value={sortState}>
                     <Table
                         columns={columns}

@@ -6,6 +6,17 @@ import {
     useState,
 } from 'react';
 import {
+    Bar,
+    BarChart,
+    CartesianGrid,
+    Legend,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis,
+} from 'recharts';
+
+import {
     gql,
     useMutation,
     useQuery,
@@ -14,12 +25,9 @@ import { CloseLineIcon } from '@ifrc-go/icons';
 import {
     Button,
     Checkbox,
-    type CheckboxProps,
     ConfirmButton,
     Container,
     DateInput,
-    DateOutput,
-    type DateOutputProps,
     KeyFigure,
     Pager,
     Popup,
@@ -29,7 +37,6 @@ import {
 } from '@ifrc-go/ui';
 import { SortContext } from '@ifrc-go/ui/contexts';
 import {
-    createElementColumn,
     createStringColumn,
     resolveToString,
 } from '@ifrc-go/ui/utils';
@@ -40,20 +47,18 @@ import {
 
 import Page from '#components/Page';
 import {
-    type FilterEnumsQuery,
-    type IdBaseFilterLookup,
-    type LoadQuery,
-    type LoadQueryVariables,
-    type PyStacLoadDataItemTypeEnum,
-    type PyStacLoadDataStatusEnum,
-    type RetriggerPipelineMutation,
-    type RetriggerPipelineMutationVariables,
-    type SourceTypeEnum,
+    ExtractionEnumsQuery,
+    IdBaseFilterLookup,
+    LoadQuery,
+    LoadQueryVariables,
+    PyStacLoadDataItemTypeEnum,
+    PyStacLoadDataStatusEnum,
+    PyStacLoadEnumsQuery,
+    RetriggerPipelineMutation,
+    RetriggerPipelineMutationVariables,
 } from '#generated/types/graphql';
 import useAlert from '#hooks/useAlert';
 import useFilterState from '#hooks/useFilterState';
-import getEnumLabelFromValue from '#utils/common';
-import { FILTER_ENUMS } from '#utils/queries';
 
 import styles from './styles.module.css';
 
@@ -78,6 +83,13 @@ const LOADS = gql`
                 transformId
             }
         }
+        statusSourceCountsPystac {
+            successCount
+            source
+            pendingCount
+            inProgressCount
+            failedCount
+        }
         uniqueItemsCounts {
             uniqueEventCount
             uniqueHazardCount
@@ -86,15 +98,37 @@ const LOADS = gql`
     }
 `;
 
+const FILTERS_ENUMS = gql`
+    query PyStacLoadEnums {
+        enums {
+            ExtractionDataSource {
+                key
+                label
+            }
+            ExtractionDataSourceValidationStatus {
+                key
+                label
+            }
+            PyStacLoadDataStatus{
+                key
+                label
+            }
+            PyStacLoadDataItemType {
+                key
+                label
+            }
+        }
+    }
+`;
 const RETRIGGER = gql`
     mutation RetriggerPipeline($data: PipelineRetriggerInput!) {
         retriggerPipeline(data: $data)
     }
 `;
 
-type DataSourceType = NonNullable<NonNullable<NonNullable<FilterEnumsQuery['enums']>['ExtractionDataSource']>[number]>;
-type PyStacLoadDataStatusType = NonNullable<NonNullable<NonNullable<FilterEnumsQuery['enums']>['PyStacLoadDataStatus']>[number]>;
-type PyStacLoadDataItemType = NonNullable<NonNullable<NonNullable<FilterEnumsQuery['enums']>['PyStacLoadDataItemType']>[number]>;
+type DataSourceType = NonNullable<NonNullable<NonNullable<ExtractionEnumsQuery['enums']>['ExtractionDataSource']>[number]>;
+type PyStacLoadDataStatusType = NonNullable<NonNullable<NonNullable<PyStacLoadEnumsQuery['enums']>['PyStacLoadDataStatus']>[number]>;
+type PyStacLoadDataItemType = NonNullable<NonNullable<NonNullable<PyStacLoadEnumsQuery['enums']>['PyStacLoadDataItemType']>[number]>;
 type LoadDataItemType = NonNullable<NonNullable<NonNullable<LoadQuery['pystacs']>['results']>[number]> & {
     isSelected: boolean;
 };
@@ -132,7 +166,7 @@ function Load() {
         createdAtStart?: string;
         createdAtEnd?: string;
         traceId?: string;
-        source?: SourceTypeEnum;
+        source?: DataSourceType
         status?: PyStacLoadDataStatusEnum;
         itemType?: PyStacLoadDataItemTypeEnum ;
       }>({
@@ -175,7 +209,7 @@ function Load() {
                 ...otherFilters,
                 createdAt: isDefined(createdAt.gte)
                 || isDefined(createdAt.lte) ? createdAt : undefined,
-                traceId: traceId ? { exact: traceId } as IdBaseFilterLookup : undefined,
+                traceId: traceId ? { eq: traceId } as IdBaseFilterLookup : undefined,
             },
         };
     }, [
@@ -196,9 +230,9 @@ function Load() {
         },
     );
     const {
-        data: filterEnumsResponse,
-    } = useQuery<FilterEnumsQuery>(
-        FILTER_ENUMS,
+        data: filtersEnumsResponse,
+    } = useQuery(
+        FILTERS_ENUMS,
     );
     const [
         retriggerTransform,
@@ -220,7 +254,7 @@ function Load() {
                 setSelectedIds([]);
             },
             // FIXME:  fix after error added  to serverside
-            onError: () => {
+            onError: (error) => {
                 alert.show(
                     'Failed to Retrigger the Content. Please try again later.',
                     { variant: 'danger' },
@@ -259,79 +293,66 @@ function Load() {
         });
     }, []);
 
-    /*
     const handleSelectAllChange = useCallback((checked: boolean) => {
         if (!loadResponse?.pystacs.results) return;
         const currentPageIds = loadResponse.pystacs.results.map((item) => item.id);
         setSelectedIds(checked ? currentPageIds : []);
     }, [loadResponse]);
-    */
 
-    const sourceOptions = filterEnumsResponse?.enums?.ExtractionDataSource;
-    const statusOptions = filterEnumsResponse?.enums?.PyStacLoadDataStatus;
-    const itemTypeOptions = filterEnumsResponse?.enums?.PyStacLoadDataItemType;
+    const pyStacStatusData = loadResponse?.statusSourceCountsPystac;
+
+    const sourceOptions = filtersEnumsResponse?.enums?.ExtractionDataSource;
+    const statusOptions = filtersEnumsResponse?.enums?.PyStacLoadDataStatus;
+    const itemTypeOptions = filtersEnumsResponse?.enums?.PyStacLoadDataItemType;
 
     const columns = useMemo(
         () => ([
-            createElementColumn<LoadDataItemType, string, CheckboxProps<string>>(
+            createStringColumn<LoadDataItemType, { isSelected: boolean }>(
                 'select',
-                '',
-                /*
-                Checkbox,
-                (_, item) => ({
-                    name: 'select-all',
-                    onChange: handleSelectAllChange,
-                    value: dataWithSelection.length > 0
-                        && dataWithSelection.every(() => item.isSelected),
-                }),
-                */
-                Checkbox,
-                (id, item) => ({
-                    name: `select-${id}`,
-                    value: item.isSelected,
-                    onChange: (checked) => handleCheckboxChange(item.id, checked),
-                }),
+                (
+                    <Checkbox
+                        name="selectAll"
+                        onChange={handleSelectAllChange}
+                        value={
+                            dataWithSelection.length > 0
+                            && dataWithSelection.every((item) => item.isSelected)
+                        }
+                    />
+                ),
+                (item) => (
+                    <Checkbox
+                        name={`select-${item.id}`}
+                        value={item.isSelected}
+                        onChange={(checked) => handleCheckboxChange(item.id, checked)}
+                    />
+                ),
+                (item: { isSelected: boolean; }) => ({ isSelected: item.isSelected }),
             ),
             createStringColumn<LoadDataItemType, string>(
                 'id',
-                'Load Id',
+                'Id',
                 (item) => item.id,
             ),
             createStringColumn<LoadDataItemType, string>(
-                'itemType',
-                'Item Type',
-                (item) => getEnumLabelFromValue(
-                    item.itemType,
-                    itemTypeOptions ?? [],
-                ),
-            ),
-            createElementColumn<LoadDataItemType, string, DateOutputProps>(
                 'createdAt',
                 'Created at',
-                DateOutput,
-                (_, item) => ({
-                    value: item.createdAt,
-                    format: 'MM/dd/yyyy hh:mm:ss',
+                (item) => item.createdAt,
+                {
                     sortable: true,
-                }),
+                },
             ),
-            createElementColumn<LoadDataItemType, string, DateOutputProps>(
+            createStringColumn<LoadDataItemType, string>(
                 'modifiedAt',
                 'Modified at',
-                DateOutput,
-                (_, item) => ({
-                    value: item.createdAt,
-                    format: 'MM/dd/yyyy hh:mm:ss',
+                (item) => item.modifiedAt,
+                {
                     sortable: true,
-                }),
+                },
             ),
             createStringColumn<LoadDataItemType, string>(
                 'status',
                 'Status',
-                (item) => getEnumLabelFromValue(
-                    item.status,
-                    statusOptions ?? [],
-                ),
+                (item) => item.status,
                 {
                     sortable: true,
                 },
@@ -349,14 +370,13 @@ function Load() {
                     sortable: true,
                 },
             ),
+            createStringColumn<LoadDataItemType, string>(
+                'itemType',
+                'Item Type',
+                (item) => item.itemType.toString(),
+            ),
         ]),
-        [
-            // dataWithSelection,
-            handleCheckboxChange,
-            // handleSelectAllChange,
-            itemTypeOptions,
-            statusOptions,
-        ],
+        [dataWithSelection, handleCheckboxChange, handleSelectAllChange],
     );
 
     const data = loadResponse?.pystacs.results;
@@ -391,7 +411,8 @@ function Load() {
             <Container
                 heading={heading}
                 withHeaderBorder
-                className={styles.extractionTable}
+                className={styles.loadTable}
+                childrenContainerClassName={styles.content}
                 footerActions={isDefined(data) && (
                     <Pager
                         activePage={page}
@@ -465,6 +486,30 @@ function Load() {
                     </>
                 )}
             >
+                <ResponsiveContainer
+                    width="100%"
+                    height={300}
+                >
+                    <BarChart
+                        data={pyStacStatusData}
+                        margin={{
+                            top: 20,
+                            right: 30,
+                            left: 20,
+                            bottom: 5,
+                        }}
+                    >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="source" />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey="failedCount" stackId="a" fill="#a56eff" />
+                        <Bar dataKey="inProgressCount" stackId="a" fill="#009d9a" />
+                        <Bar dataKey="pendingCount" stackId="a" fill="#002d9c" />
+                        <Bar dataKey="successCount" stackId="a" fill="#fa4d56" />
+                    </BarChart>
+                </ResponsiveContainer>
                 <SortContext.Provider value={sortState}>
                     <Table
                         columns={columns}

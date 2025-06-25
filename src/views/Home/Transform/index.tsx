@@ -6,6 +6,16 @@ import {
     useState,
 } from 'react';
 import {
+    Bar,
+    BarChart,
+    CartesianGrid,
+    Legend,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis,
+} from 'recharts';
+import {
     gql,
     useMutation,
     useQuery,
@@ -84,6 +94,13 @@ const TRANSFORMS = gql`
             failedCount
             inProgressCount
             pendingCount
+            successCount
+        }
+        statusSourceCountsTransform {
+            failedCount
+            inProgressCount
+            pendingCount
+            source
             successCount
         }
         statusSourceCountsTransform {
@@ -274,6 +291,8 @@ function Transformation() {
     const sourceOptions = filterEnumsResponse?.enums?.ExtractionDataSource;
     const statusOptions = filterEnumsResponse?.enums?.ExtractionDataStatus;
 
+    const extractionDataByTransformation = transformationResponse?.statusSourceCountsTransform;
+
     const columns = useMemo(
         () => ([
             createElementColumn<TransformationDataItem, string, CheckboxProps<string>>(
@@ -400,7 +419,8 @@ function Transformation() {
             <Container
                 heading={heading}
                 withHeaderBorder
-                className={styles.extractionTable}
+                className={styles.transformTable}
+                childrenContainerClassName={styles.content}
                 footerActions={isDefined(data) && (
                     <Pager
                         activePage={page}
@@ -463,6 +483,30 @@ function Transformation() {
                     </>
                 )}
             >
+                <ResponsiveContainer
+                    width="100%"
+                    height={300}
+                >
+                    <BarChart
+                        data={extractionDataByTransformation}
+                        margin={{
+                            top: 20,
+                            right: 30,
+                            left: 20,
+                            bottom: 5,
+                        }}
+                    >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="source" />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey="failedCount" stackId="a" fill="#a56eff" />
+                        <Bar dataKey="inProgressCount" stackId="a" fill="#009d9a" />
+                        <Bar dataKey="pendingCount" stackId="a" fill="#002d9c" />
+                        <Bar dataKey="successCount" stackId="a" fill="#fa4d56" />
+                    </BarChart>
+                </ResponsiveContainer>
                 <SortContext.Provider value={sortState}>
                     <Table
                         columns={columns}
