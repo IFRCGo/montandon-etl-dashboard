@@ -1,3 +1,5 @@
+# -------------------------- Dev ---------------------------------------
+
 FROM node:18-bullseye AS dev
 
 RUN apt-get update -y \
@@ -14,7 +16,7 @@ RUN git config --global --add safe.directory /code
 # -------------------------- Nginx - Builder -----------------------
 FROM dev AS nginx-build
 
-COPY package.json pnpm-lock.yaml /code/
+COPY ./package.json ./pnpm-lock.yaml /code/
 
 RUN corepack prepare --activate
 
@@ -24,7 +26,7 @@ COPY . .
 
 ## Build variables (Requires backend pulled)
 ENV APP_TITLE=APP_TITLE
-ENV APP_GRAPHQL_ENDPOINT=APP_GRAPHQL_ENDPOINT
+ENV APP_GRAPHQL_ENDPOINT=https://APP_GRAPHQL_ENDPOINT.COM/
 ENV APP_GRAPHQL_CODEGEN_ENDPOINT=./montandon-etl/schema.graphql
 
 RUN pnpm generate:type && pnpm build
