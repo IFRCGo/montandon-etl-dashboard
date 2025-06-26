@@ -1,6 +1,5 @@
 import {
     useCallback,
-    useEffect,
     useMemo,
     useState,
 } from 'react';
@@ -8,26 +7,31 @@ import {
     createBrowserRouter,
     RouterProvider,
 } from 'react-router-dom';
+
+/*
 import {
     gql,
     useQuery,
 } from '@apollo/client';
-
-import {
-    MeQuery,
-    MeQueryVariables,
-} from '#generated/types/graphql';
+ */
+import RouteContext from '#contexts/route';
 import UserContext, {
     UserAuth,
     UserContextProps,
 } from '#contexts/user';
-import RouteContext from '#contexts/route';
 
+/*
 import {
-    wrappedRoutes,
+    MeQuery,
+    MeQueryVariables,
+} from '#generated/types/graphql';
+ */
+import {
     unwrappedRoutes,
+    wrappedRoutes,
 } from './routes';
 
+/*
 const ME_QUERY = gql`
     query Me {
         private {
@@ -43,12 +47,14 @@ const ME_QUERY = gql`
         }
     }
 `;
+ */
 
 const router = createBrowserRouter(unwrappedRoutes);
 
 function App() {
     const [userAuth, setUserAuth] = useState<UserAuth>();
 
+    /*
     const {
         loading,
         data: meResult,
@@ -61,6 +67,7 @@ function App() {
             setUserAuth(meResult?.private?.me ?? undefined);
         }
     }, [meResult, loading]);
+     */
 
     const removeUserAuth = useCallback(
         () => {
