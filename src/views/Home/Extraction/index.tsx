@@ -36,6 +36,16 @@ import {
     isDefined,
     isNotDefined,
 } from '@togglecorp/fujs';
+import {
+    Bar,
+    BarChart,
+    CartesianGrid,
+    Legend,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis,
+} from 'recharts';
 
 import Page from '#components/Page';
 import {
@@ -56,12 +66,14 @@ import styles from './styles.module.css';
 
 const EXTRACTIONS = gql`
     query Extractions (
+        $order: ExtractionOrder,
         $pagination: OffsetPaginationInput,
         $filters: ExtractionDataFilter,
     ) {
         extractions(
             filters: $filters,
-            pagination: $pagination
+            pagination: $pagination,
+            order: $order,
         ) {
             totalCount
             pageInfo {
@@ -279,6 +291,8 @@ function Extraction() {
     const sourceOptions = filterEnumsResponse?.enums?.ExtractionDataSource;
     const statusOptions = filterEnumsResponse?.enums?.ExtractionDataStatus;
 
+    const extractionDataBySource = extractionsResponse?.statusSourceCountsExtraction;
+
     const columns = useMemo(
         () => ([
             createElementColumn<ExtractionDataItemType, string, CheckboxProps<string>>(
@@ -304,7 +318,10 @@ function Extraction() {
                 'id',
                 'Extraction Id',
                 (item) => item.id,
-                { columnClassName: styles.id },
+                {
+                    columnClassName: styles.id,
+                    sortable: true,
+                },
             ),
             createStringColumn<ExtractionDataItemType, string>(
                 'source',
@@ -321,7 +338,6 @@ function Extraction() {
                 'respDataType',
                 'Response data Type',
                 (item) => item.respDataType,
-                { sortable: true },
             ),
             createElementColumn<ExtractionDataItemType, string, { url: string }>(
                 'url',
@@ -346,9 +362,6 @@ function Extraction() {
                     item.sourceValidationStatus,
                     filterEnumsResponse?.enums?.ExtractionDataSourceValidationStatus ?? [],
                 ),
-                {
-                    sortable: true,
-                },
             ),
             /*
                 TODO: IF hazard types are saved in the server, show this.
@@ -412,25 +425,51 @@ function Extraction() {
             className={styles.extraction}
             mainSectionClassName={styles.mainSection}
         >
-            <div className={styles.keyFigures}>
-                <KeyFigure
-                    // FIXME: Fix this after this is no longer array from sever
-                    value={extractionsResponse?.statusCountExtraction[0]?.successCount}
-                    label="Total Extractions Succeeded"
-                    className={styles.keyFigureItem}
-                />
-                <KeyFigure
-                    // FIXME: Fix this after this is no longer array from sever
-                    value={extractionsResponse?.statusCountExtraction[0]?.failedCount}
-                    label="Total Extractions Failed"
-                    className={styles.keyFigureItem}
-                />
-                <KeyFigure
-                    // FIXME: Fix this after this is no longer array from sever
-                    value={extractionsResponse?.statusCountExtraction[0]?.pendingCount}
-                    label="Total Extractions Pending"
-                    className={styles.keyFigureItem}
-                />
+            <div className={styles.figure}>
+                <div className={styles.keyFigures}>
+                    <KeyFigure
+                        // FIXME: Fix this after this is no longer array from sever
+                        value={extractionsResponse?.statusCountExtraction[0]?.successCount}
+                        label="Total Extractions Succeeded"
+                        className={styles.keyFigureItem}
+                    />
+                    <KeyFigure
+                        // FIXME: Fix this after this is no longer array from sever
+                        value={extractionsResponse?.statusCountExtraction[0]?.failedCount}
+                        label="Total Extractions Failed"
+                        className={styles.keyFigureItem}
+                    />
+                    <KeyFigure
+                        // FIXME: Fix this after this is no longer array from sever
+                        value={extractionsResponse?.statusCountExtraction[0]?.pendingCount}
+                        label="Total Extractions Pending"
+                        className={styles.keyFigureItem}
+                    />
+                </div>
+                <ResponsiveContainer
+                    width="100%"
+                    height={300}
+                >
+                    <BarChart
+                        data={extractionDataBySource}
+                        margin={{
+                            top: 20,
+                            right: 30,
+                            left: 20,
+                            bottom: 5,
+                        }}
+                    >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="source" />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey="failedCount" stackId="a" fill="#a56eff" />
+                        <Bar dataKey="inProgressCount" stackId="a" fill="#009d9a" />
+                        <Bar dataKey="pendingCount" stackId="a" fill="#002d9c" />
+                        <Bar dataKey="successCount" stackId="a" fill="#fa4d56" />
+                    </BarChart>
+                </ResponsiveContainer>
             </div>
             <Container
                 heading={heading}
