@@ -1,0 +1,68 @@
+name: CD
+
+# NOTE: Don't update this
+on:
+  push:
+    branches:
+      - main
+
+  schedule:
+    # Runs "At 00:01. every day" (see https://crontab.guru)
+    - cron: '1 0 * * *'
+
+jobs:
+  test_build:
+    name: Run Tests + Build
+    runs-on: ubuntu-latest
+
+    steps:
+      # NOTE: This uses default branch which is `main`
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
+
+      - uses: actions/cache@v4
+        id: data-cache
+        with:
+          path: cache
+          key: data-cache
+
+      - name: Run pnpm install
+        run: pnpm install
+
+      - name: Build + Test
+        run: pnpm run build
+        timeout-minutes: 30
+        env:
+          # Common
+          NODE_OPTIONS: --max_old_space_size=4096
+
+      - name: Upload GH artifacts
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: out/
+
+  deploy:
+    name: Deploy (GH Page)
+    needs: test_build
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      id-token: write
+      pages: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages 🚀
+        id: deployment
+        uses: actions/deploy-pages@v4

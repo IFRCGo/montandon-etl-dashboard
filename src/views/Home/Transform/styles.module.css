@@ -1,4 +1,3 @@
-
 .transformation {
     .main-section {
         display: flex;
@@ -11,7 +10,7 @@
         display: grid;
         grid-gap: var(--go-ui-spacing-lg);
         grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
-    
+
         .key-figure-item {
             border-radius: var(--go-ui-border-radius-sm);
             background-color: var(--go-ui-color-gray-20);

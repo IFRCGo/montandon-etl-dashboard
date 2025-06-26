@@ -6,6 +6,9 @@
         "src/**/*.test.tsx",
         "src/index.tsx!"
     ],
+    "ignoreDependencies": [
+        "@graphql-typed-document-node/core"
+    ],
     "project": [
         "src/**/*.d.ts",
         "src/**/*.test.ts",
