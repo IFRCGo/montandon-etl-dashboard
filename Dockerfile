@@ -25,8 +25,8 @@ RUN pnpm install
 COPY . .
 
 ## Build variables (Requires backend pulled)
-ENV APP_TITLE=APP_TITLE
-ENV APP_GRAPHQL_ENDPOINT=https://APP_GRAPHQL_ENDPOINT.COM/
+ENV APP_TITLE=APP_TITLE_PLACEHOLDER
+ENV APP_API_ENDPOINT=APP_API_ENDPOINT_PLACEHOLDER
 ENV APP_GRAPHQL_CODEGEN_ENDPOINT=./montandon-etl/schema.graphql
 
 RUN pnpm generate:type && pnpm build
