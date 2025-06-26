@@ -29,5 +29,5 @@ const apolloOptions: ApolloClientOptions<NormalizedCacheObject> = {
     },
 };
 
-export default apolloOptions;
+// eslint-disable-next-line import/prefer-default-export
 export const apolloClient = new ApolloClient(apolloOptions);
