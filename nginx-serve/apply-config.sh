@@ -26,7 +26,7 @@ cp -r --no-target-directory "$SOURCE_DIRECTORY" "$DESTINATION_DIRECTORY"
 
 find "$DESTINATION_DIRECTORY" -type f -exec sed -i "s|\<APP_TITLE_PLACEHOLDER\>|$APP_TITLE|g" {} +
 # NOTE: We don't need a word boundary at end as we already have a trailing slash
-find "$DESTINATION_DIRECTORY" -type f -exec sed -i "s|\<https://APP-API-ENDPOINT-PLACEHOLDER.COM/|$APP_API_ENDPOINT|g" {} +
+find "$DESTINATION_DIRECTORY" -type f -exec sed -i "s|\<https://APP_API_ENDPOINT_PLACEHOLDER.COM/|$APP_GRAPHQL_ENDPOINT|g" {} +
 
 # Show diffs (Useful to debug issues)
 set +xe
