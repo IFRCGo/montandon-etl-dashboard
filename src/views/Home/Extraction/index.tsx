@@ -91,6 +91,7 @@ const EXTRACTIONS = gql`
                 status
                 traceId
                 url
+                filesize
             }
         }
         statusCountExtraction {
@@ -110,8 +111,16 @@ const EXTRACTIONS = gql`
 `;
 
 const RETRIGGER = gql`
-    mutation RetriggerPipeline($data: PipelineRetriggerInput!) {
-        retriggerPipeline(data: $data)
+    mutation RetriggerPipeline(
+        $traceIds: [Int!]!
+    ) {
+        retriggerPipeline(data: {
+            traceId: $traceIds
+        }) {
+            errors
+            ok
+            result
+        }
     }
 `;
 
@@ -252,9 +261,7 @@ function Extraction() {
     const handleRetriggerTransform = useCallback(() => {
         retriggerTransform({
             variables: {
-                data: {
-                    traceId: selectedIds.map(Number),
-                },
+                traceIds: selectedIds.map(Number),
             },
         });
     }, [retriggerTransform, selectedIds]);

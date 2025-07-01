@@ -1,28 +1,16 @@
-import {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-} from 'react';
+import { useMemo } from 'react';
 import {
     gql,
-    useMutation,
     useQuery,
 } from '@apollo/client';
-import { CloseLineIcon } from '@ifrc-go/icons';
 import {
     Button,
-    Checkbox,
-    type CheckboxProps,
-    ConfirmButton,
     Container,
     DateInput,
     DateOutput,
     type DateOutputProps,
     KeyFigure,
     Pager,
-    Popup,
     SelectInput,
     Table,
     TextInput,
@@ -56,11 +44,8 @@ import {
     type LoadQueryVariables,
     type PyStacLoadDataItemTypeEnum,
     type PyStacLoadDataStatusEnum,
-    type RetriggerPipelineMutation,
-    type RetriggerPipelineMutationVariables,
     type SourceTypeEnum,
 } from '#generated/types/graphql';
-import useAlert from '#hooks/useAlert';
 import useFilterState from '#hooks/useFilterState';
 import getEnumLabelFromValue from '#utils/common';
 import { FILTER_ENUMS } from '#utils/queries';
@@ -104,18 +89,10 @@ const LOADS = gql`
     }
 `;
 
-const RETRIGGER = gql`
-    mutation RetriggerPipeline($data: PipelineRetriggerInput!) {
-        retriggerPipeline(data: $data)
-    }
-`;
-
 type DataSourceType = NonNullable<NonNullable<NonNullable<FilterEnumsQuery['enums']>['ExtractionDataSource']>[number]>;
 type PyStacLoadDataStatusType = NonNullable<NonNullable<NonNullable<FilterEnumsQuery['enums']>['PyStacLoadDataStatus']>[number]>;
 type PyStacLoadDataItemType = NonNullable<NonNullable<NonNullable<FilterEnumsQuery['enums']>['PyStacLoadDataItemType']>[number]>;
-type LoadDataItemType = NonNullable<NonNullable<NonNullable<LoadQuery['pystacs']>['results']>[number]> & {
-    isSelected: boolean;
-};
+type LoadDataItemType = NonNullable<NonNullable<NonNullable<LoadQuery['pystacs']>['results']>[number]>;
 type LoadFilterType = NonNullable<LoadQueryVariables['filters']>;
 
 const sourceKeySelector = (option: DataSourceType) => option.key;
@@ -131,10 +108,6 @@ const ASC = 'ASC';
 const DESC = 'DESC';
 
 function Load() {
-    const alert = useAlert();
-    const containerRef = useRef<HTMLDivElement | null>(null);
-    const [isRetriggerBannerVisible, setIsRetriggerBannerVisible] = useState(false);
-    const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const {
         sortState,
         limit,
@@ -218,74 +191,8 @@ function Load() {
     } = useQuery<FilterEnumsQuery>(
         FILTER_ENUMS,
     );
-    const [
-        retriggerTransform,
-    ] = useMutation<RetriggerPipelineMutation, RetriggerPipelineMutationVariables>(
-        RETRIGGER,
-        {
-            onCompleted: (response) => {
-                if (response?.retriggerPipeline) {
-                    alert.show(
-                        'Successfully Retriggered the Content',
-                        { variant: 'success' },
-                    );
-                } else {
-                    alert.show(
-                        'Failed to Retrigger the Content. Unexpected response from the server.',
-                        { variant: 'danger' },
-                    );
-                }
-                setSelectedIds([]);
-            },
-            // FIXME:  fix after error added  to serverside
-            onError: () => {
-                alert.show(
-                    'Failed to Retrigger the Content. Please try again later.',
-                    { variant: 'danger' },
-                );
-            },
-        },
-    );
-
-    const handleRetriggerTransform = useCallback(() => {
-        retriggerTransform({
-            variables: {
-                data: {
-                    traceId: selectedIds.map(Number),
-                },
-            },
-        });
-    }, [retriggerTransform, selectedIds]);
-
-    const handleCloseRetriggerBanner = () => {
-        setIsRetriggerBannerVisible(false);
-    };
-    useEffect(() => {
-        setIsRetriggerBannerVisible(selectedIds.length > 0);
-    }, [selectedIds]);
-
-    const dataWithSelection = useMemo(() => (
-        loadResponse?.pystacs.results ?? []).map((item) => ({
-        ...item,
-        isSelected: selectedIds.includes(item.id),
-    })), [loadResponse, selectedIds]);
-
-    const handleCheckboxChange = useCallback((id: string, checked: boolean) => {
-        setSelectedIds((prev) => {
-            if (checked) return [...prev, id];
-            return prev.filter((existingId) => existingId !== id);
-        });
-    }, []);
 
     const pyStacStatusData = loadResponse?.statusSourceCountsPystac;
-
-    /*
-    const handleSelectAllChange = useCallback((checked: boolean) => {
-        if (!loadResponse?.pystacs.results) return;
-        const currentPageIds = loadResponse.pystacs.results.map((item) => item.id);
-        setSelectedIds(checked ? currentPageIds : []);
-    }, [loadResponse]);
-    */
 
     const sourceOptions = filterEnumsResponse?.enums?.ExtractionDataSource;
     const statusOptions = filterEnumsResponse?.enums?.PyStacLoadDataStatus;
@@ -293,25 +200,6 @@ function Load() {
 
     const columns = useMemo(
         () => ([
-            createElementColumn<LoadDataItemType, string, CheckboxProps<string>>(
-                'select',
-                '',
-                /*
-                Checkbox,
-                (_, item) => ({
-                    name: 'select-all',
-                    onChange: handleSelectAllChange,
-                    value: dataWithSelection.length > 0
-                        && dataWithSelection.every(() => item.isSelected),
-                }),
-                */
-                Checkbox,
-                (id, item) => ({
-                    name: `select-${id}`,
-                    value: item.isSelected,
-                    onChange: (checked) => handleCheckboxChange(item.id, checked),
-                }),
-            ),
             createStringColumn<LoadDataItemType, string>(
                 'id',
                 'Load Id',
@@ -375,9 +263,6 @@ function Load() {
             ),
         ]),
         [
-            // dataWithSelection,
-            handleCheckboxChange,
-            // handleSelectAllChange,
             itemTypeOptions,
             statusOptions,
         ],
@@ -518,50 +403,13 @@ function Load() {
                 <SortContext.Provider value={sortState}>
                     <Table
                         columns={columns}
-                        data={dataWithSelection}
+                        data={loadResponse?.pystacs.results}
                         keySelector={keySelector}
                         pending={loading}
                         filtered={filtered}
                         errored={isDefined(loadError)}
                     />
                 </SortContext.Provider>
-                {isRetriggerBannerVisible && (
-                    <div
-                        ref={containerRef}
-                    >
-                        <Popup
-                            parentRef={containerRef}
-                            className={styles.popup}
-                        >
-                            <Container
-                                className={styles.retriggerAction}
-                                actions={(
-                                    <Button
-                                        name={undefined}
-                                        variant="tertiary"
-                                        onClick={handleCloseRetriggerBanner}
-                                    >
-                                        <CloseLineIcon />
-                                    </Button>
-                                )}
-                                footerContent={(
-                                    <>
-                                        <div>{`${selectedIds.length} items selected.`}</div>
-                                        <ConfirmButton
-                                            name="retrigger"
-                                            title="Retrigger"
-                                            onConfirm={handleRetriggerTransform}
-                                        >
-                                            Retrigger selected items
-                                        </ConfirmButton>
-                                    </>
-
-                                )}
-                            />
-
-                        </Popup>
-                    </div>
-                )}
             </Container>
         </Page>
     );
