@@ -33,16 +33,14 @@ ENV APP_GRAPHQL_CODEGEN_ENDPOINT=./montandon-etl/schema.graphql
 RUN pnpm generate:type && pnpm build
 
 # ---------------------------Nginx - Serve----------------------------------
-FROM nginx:1 AS nginx-serve
+FROM ghcr.io/toggle-corp/web-app-serve:v0.1.1 AS web-app-serve
 
 LABEL maintainer="IFRC"
 LABEL org.opencontainers.image.source="https://github.com/IFRCGo/montandon-etl-dashboard"
 
-COPY ./nginx-serve/apply-config.sh /docker-entrypoint.d/
-COPY ./nginx-serve/nginx.conf.template /etc/nginx/templates/default.conf.template
-COPY --from=nginx-build /code/build /code/build
-
 # NOTE: Used by apply-config.sh
+ENV APPLY_CONFIG__APPLY_CONFIG_PATH=/code/apply-config.sh
 ENV APPLY_CONFIG__SOURCE_DIRECTORY=/code/build/
-ENV APPLY_CONFIG__DESTINATION_DIRECTORY=/usr/share/nginx/html/
-ENV APPLY_CONFIG__OVERWRITE_DESTINATION=true
+
+COPY --from=nginx-build /code/build "$APPLY_CONFIG__SOURCE_DIRECTORY"
+COPY ./web-app-serve/apply-config.sh "$APPLY_CONFIG__APPLY_CONFIG_PATH"

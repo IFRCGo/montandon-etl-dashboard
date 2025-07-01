@@ -1,0 +1,18 @@
+name: monty-web-app-serve
+
+services:
+  web-app-serve:
+    build:
+      context: ../
+      target: web-app-serve
+    environment:
+      APP_TITLE: ${APP_TITLE:- Montandon ETL Dashboard}
+      APP_GRAPHQL_ENDPOINT: ${APP_GRAPHQL_ENDPOINT:-http://localhost:8000/graphql/}
+      APPLY_CONFIG__ENABLE_DEBUG: true
+    ports:
+      - '3092:80'
+    develop:
+      watch:
+        - action: sync+restart
+          path: ../web-app-serve/apply-config.sh
+          target: /code/apply-config.sh
