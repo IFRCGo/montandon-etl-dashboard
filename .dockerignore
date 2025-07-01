@@ -138,3 +138,7 @@ deploy/eb/
 
 # tox
 ./.tox
+
+# backend
+/montandon-etl/
+!/montandon-etl/schema.graphql
