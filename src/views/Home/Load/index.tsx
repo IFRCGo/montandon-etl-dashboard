@@ -37,6 +37,16 @@ import {
     isDefined,
     isNotDefined,
 } from '@togglecorp/fujs';
+import {
+    Bar,
+    BarChart,
+    CartesianGrid,
+    Legend,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis,
+} from 'recharts';
 
 import Page from '#components/Page';
 import {
@@ -60,9 +70,10 @@ import styles from './styles.module.css';
 const LOADS = gql`
     query load (
         $pagination: OffsetPaginationInput,
-        $filters:PystacDataFilter,
+        $filters: PystacDataFilter,
+        $order: PystacOrder,
     ) {
-        pystacs(filters: $filters, pagination: $pagination) {
+        pystacs(filters: $filters, pagination: $pagination, order: $order) {
             totalCount
             pageInfo {
                 limit
@@ -77,6 +88,13 @@ const LOADS = gql`
                 traceId
                 transformId
             }
+        }
+        statusSourceCountsPystac {
+            successCount
+            source
+            pendingCount
+            inProgressCount
+            failedCount
         }
         uniqueItemsCounts {
             uniqueEventCount
@@ -134,11 +152,11 @@ function Load() {
         traceId?: string;
         source?: SourceTypeEnum;
         status?: PyStacLoadDataStatusEnum;
-        itemType?: PyStacLoadDataItemTypeEnum ;
-      }>({
-          filter: {},
-          pageSize: PAGE_SIZE,
-      });
+        itemType?: PyStacLoadDataItemTypeEnum;
+    }>({
+        filter: {},
+        pageSize: PAGE_SIZE,
+    });
 
     const order = useMemo(() => {
         if (isNotDefined(sortState.sorting)) {
@@ -174,7 +192,7 @@ function Load() {
             filters: {
                 ...otherFilters,
                 createdAt: isDefined(createdAt.gte)
-                || isDefined(createdAt.lte) ? createdAt : undefined,
+                    || isDefined(createdAt.lte) ? createdAt : undefined,
                 traceId: traceId ? { exact: traceId } as IdBaseFilterLookup : undefined,
             },
         };
@@ -259,6 +277,8 @@ function Load() {
         });
     }, []);
 
+    const pyStacStatusData = loadResponse?.statusSourceCountsPystac;
+
     /*
     const handleSelectAllChange = useCallback((checked: boolean) => {
         if (!loadResponse?.pystacs.results) return;
@@ -296,6 +316,9 @@ function Load() {
                 'id',
                 'Load Id',
                 (item) => item.id,
+                {
+                    sortable: true,
+                },
             ),
             createStringColumn<LoadDataItemType, string>(
                 'itemType',
@@ -312,7 +335,6 @@ function Load() {
                 (_, item) => ({
                     value: item.createdAt,
                     format: 'MM/dd/yyyy hh:mm:ss',
-                    sortable: true,
                 }),
             ),
             createElementColumn<LoadDataItemType, string, DateOutputProps>(
@@ -322,7 +344,6 @@ function Load() {
                 (_, item) => ({
                     value: item.createdAt,
                     format: 'MM/dd/yyyy hh:mm:ss',
-                    sortable: true,
                 }),
             ),
             createStringColumn<LoadDataItemType, string>(
@@ -340,6 +361,9 @@ function Load() {
                 'traceId',
                 'Trace Id',
                 (item) => item.traceId,
+                {
+                    sortable: true,
+                },
             ),
             createStringColumn<LoadDataItemType, string>(
                 'transformId',
@@ -362,7 +386,7 @@ function Load() {
     const data = loadResponse?.pystacs.results;
 
     const heading = resolveToString(
-        'All Transformation ({numAppeals})',
+        'All Load ({numAppeals})',
         { numAppeals: loadResponse?.pystacs.totalCount },
     );
 
@@ -371,22 +395,48 @@ function Load() {
             className={styles.loads}
             mainSectionClassName={styles.mainSection}
         >
-            <div className={styles.keyFigures}>
-                <KeyFigure
-                    value={loadResponse?.uniqueItemsCounts[0]?.uniqueEventCount}
-                    label="Total Event Count"
-                    className={styles.keyFigureItem}
-                />
-                <KeyFigure
-                    value={loadResponse?.uniqueItemsCounts[0]?.uniqueHazardCount}
-                    label="Total Hazard Count"
-                    className={styles.keyFigureItem}
-                />
-                <KeyFigure
-                    value={loadResponse?.uniqueItemsCounts[0]?.uniqueImpactCount}
-                    label="Total Impact Count"
-                    className={styles.keyFigureItem}
-                />
+            <div className={styles.figures}>
+                <div className={styles.keyFigures}>
+                    <KeyFigure
+                        value={loadResponse?.uniqueItemsCounts[0]?.uniqueEventCount}
+                        label="Total Event Count"
+                        className={styles.keyFigureItem}
+                    />
+                    <KeyFigure
+                        value={loadResponse?.uniqueItemsCounts[0]?.uniqueHazardCount}
+                        label="Total Hazard Count"
+                        className={styles.keyFigureItem}
+                    />
+                    <KeyFigure
+                        value={loadResponse?.uniqueItemsCounts[0]?.uniqueImpactCount}
+                        label="Total Impact Count"
+                        className={styles.keyFigureItem}
+                    />
+                </div>
+                <ResponsiveContainer
+                    width="100%"
+                    height={300}
+                >
+                    <BarChart
+                        data={pyStacStatusData}
+                        margin={{
+                            top: 20,
+                            right: 30,
+                            left: 20,
+                            bottom: 5,
+                        }}
+                    >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="source" />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey="failedCount" stackId="a" fill="#a56eff" />
+                        <Bar dataKey="inProgressCount" stackId="a" fill="#009d9a" />
+                        <Bar dataKey="pendingCount" stackId="a" fill="#002d9c" />
+                        <Bar dataKey="successCount" stackId="a" fill="#fa4d56" />
+                    </BarChart>
+                </ResponsiveContainer>
             </div>
             <Container
                 heading={heading}
