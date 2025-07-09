@@ -391,7 +391,7 @@ function Extraction() {
                     sortable: true,
                 },
             ),
-            createNumberColumn<ExtractionDataItemType, number>(
+            createNumberColumn<ExtractionDataItemType, string>(
                 'fileSize',
                 'File Size',
                 (item) => item.filesize,

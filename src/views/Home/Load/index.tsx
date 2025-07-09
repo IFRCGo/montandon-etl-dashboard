@@ -228,6 +228,17 @@ function Load() {
                     itemTypeOptions ?? [],
                 ),
             ),
+            createStringColumn<LoadDataItemType, string>(
+                'source',
+                'Source',
+                (item) => getEnumLabelFromValue(
+                    item.source,
+                    sourceOptions ?? [],
+                ),
+                {
+                    sortable: true,
+                },
+            ),
             createElementColumn<LoadDataItemType, string, DateOutputProps>(
                 'createdAt',
                 'Created at',
