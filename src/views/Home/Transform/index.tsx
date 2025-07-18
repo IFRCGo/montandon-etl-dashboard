@@ -31,6 +31,7 @@ import { SortContext } from '@ifrc-go/ui/contexts';
 import {
     createElementColumn,
     createStringColumn,
+    formatNumber,
     resolveToString,
 } from '@ifrc-go/ui/utils';
 import {
@@ -401,10 +402,12 @@ function Transformation() {
     );
 
     const data = transformationResponse?.transforms.results;
-    const heading = resolveToString(
-        'All Transformation ({numAppeals})',
-        { numAppeals: transformationResponse?.transforms?.totalCount },
-    );
+
+    const tableHeading = isDefined(transformationResponse?.transforms?.totalCount)
+        ? resolveToString(
+            'Transforms ({totalExtractions})',
+            { totalExtractions: formatNumber(transformationResponse?.transforms?.totalCount) },
+        ) : 'Transforms';
 
     return (
         <Page
@@ -455,7 +458,7 @@ function Transformation() {
                 </ResponsiveContainer>
             </div>
             <Container
-                heading={heading}
+                heading={tableHeading}
                 withHeaderBorder
                 className={styles.transformTable}
                 footerActions={isDefined(data) && (

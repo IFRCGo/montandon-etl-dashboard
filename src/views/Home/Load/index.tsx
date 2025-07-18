@@ -20,6 +20,7 @@ import {
     DateInput,
     DateOutput,
     type DateOutputProps,
+    Heading,
     KeyFigure,
     Pager,
     Popup,
@@ -31,6 +32,7 @@ import { SortContext } from '@ifrc-go/ui/contexts';
 import {
     createElementColumn,
     createStringColumn,
+    formatNumber,
     resolveToString,
 } from '@ifrc-go/ui/utils';
 import {
@@ -87,6 +89,8 @@ const LOADS = gql`
                 status
                 traceId
                 transformId
+                collectionId
+                source
             }
         }
         statusSourceCountsPystac {
@@ -100,6 +104,14 @@ const LOADS = gql`
             uniqueEventCount
             uniqueHazardCount
             uniqueImpactCount
+        }
+        statusCountsBySourceForItemtype {
+            failedCount
+            itemType
+            pendingCount
+            source
+            total
+            successCount
         }
     }
 `;
@@ -213,6 +225,19 @@ function Load() {
             variables,
         },
     );
+
+    const eventCountBySource = useMemo(() => (
+        loadResponse?.statusCountsBySourceForItemtype?.filter((item) => item.itemType === 'EVENT')
+    ), [loadResponse?.statusCountsBySourceForItemtype]);
+
+    const hazardCountBySource = useMemo(() => (
+        loadResponse?.statusCountsBySourceForItemtype?.filter((item) => item.itemType === 'HAZARD')
+    ), [loadResponse?.statusCountsBySourceForItemtype]);
+
+    const impactCountBySource = useMemo(() => (
+        loadResponse?.statusCountsBySourceForItemtype?.filter((item) => item.itemType === 'IMPACT')
+    ), [loadResponse?.statusCountsBySourceForItemtype]);
+
     const {
         data: filterEnumsResponse,
     } = useQuery<FilterEnumsQuery>(
@@ -321,6 +346,22 @@ function Load() {
                 },
             ),
             createStringColumn<LoadDataItemType, string>(
+                'source',
+                'Source',
+                (item) => getEnumLabelFromValue(
+                    item.source,
+                    sourceOptions ?? [],
+                ),
+            ),
+            createStringColumn<LoadDataItemType, string>(
+                'collectionId',
+                'Collection Id',
+                (item) => item.collectionId,
+                {
+                    sortable: true,
+                },
+            ),
+            createStringColumn<LoadDataItemType, string>(
                 'itemType',
                 'Item Type',
                 (item) => getEnumLabelFromValue(
@@ -380,15 +421,17 @@ function Load() {
             // handleSelectAllChange,
             itemTypeOptions,
             statusOptions,
+            sourceOptions,
         ],
     );
 
     const data = loadResponse?.pystacs.results;
 
-    const heading = resolveToString(
-        'All Load ({numAppeals})',
-        { numAppeals: loadResponse?.pystacs.totalCount },
-    );
+    const tableHeading = isDefined(loadResponse?.pystacs.totalCount)
+        ? resolveToString(
+            'Loads ({totalExtractions})',
+            { totalExtractions: formatNumber(loadResponse?.pystacs.totalCount) },
+        ) : 'Loads';
 
     return (
         <Page
@@ -413,6 +456,9 @@ function Load() {
                         className={styles.keyFigureItem}
                     />
                 </div>
+                <Heading>
+                    Entries count by source
+                </Heading>
                 <ResponsiveContainer
                     width="100%"
                     height={300}
@@ -437,9 +483,87 @@ function Load() {
                         <Bar dataKey="successCount" stackId="a" fill="#fa4d56" />
                     </BarChart>
                 </ResponsiveContainer>
+                <Heading>
+                    Events count by source
+                </Heading>
+                <ResponsiveContainer
+                    width="100%"
+                    height={300}
+                >
+                    <BarChart
+                        data={eventCountBySource}
+                        margin={{
+                            top: 20,
+                            right: 30,
+                            left: 20,
+                            bottom: 5,
+                        }}
+                    >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="source" />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey="failedCount" stackId="a" fill="#a56eff" />
+                        <Bar dataKey="pendingCount" stackId="a" fill="#002d9c" />
+                        <Bar dataKey="successCount" stackId="a" fill="#fa4d56" />
+                    </BarChart>
+                </ResponsiveContainer>
+                <Heading>
+                    Hazard count by source
+                </Heading>
+                <ResponsiveContainer
+                    width="100%"
+                    height={300}
+                >
+                    <BarChart
+                        data={hazardCountBySource}
+                        margin={{
+                            top: 20,
+                            right: 30,
+                            left: 20,
+                            bottom: 5,
+                        }}
+                    >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="source" />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey="failedCount" stackId="a" fill="#a56eff" />
+                        <Bar dataKey="pendingCount" stackId="a" fill="#002d9c" />
+                        <Bar dataKey="successCount" stackId="a" fill="#fa4d56" />
+                    </BarChart>
+                </ResponsiveContainer>
+                <Heading>
+                    Impact count by source
+                </Heading>
+                <ResponsiveContainer
+                    width="100%"
+                    height={300}
+                >
+                    <BarChart
+                        data={impactCountBySource}
+                        margin={{
+                            top: 20,
+                            right: 30,
+                            left: 20,
+                            bottom: 5,
+                        }}
+                    >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="source" />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey="failedCount" stackId="a" fill="#a56eff" />
+                        <Bar dataKey="pendingCount" stackId="a" fill="#002d9c" />
+                        <Bar dataKey="successCount" stackId="a" fill="#fa4d56" />
+                    </BarChart>
+                </ResponsiveContainer>
             </div>
             <Container
-                heading={heading}
+                heading={tableHeading}
                 withHeaderBorder
                 className={styles.extractionTable}
                 footerActions={isDefined(data) && (

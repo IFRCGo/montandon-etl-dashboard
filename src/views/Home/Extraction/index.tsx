@@ -30,6 +30,7 @@ import {
     createElementColumn,
     createNumberColumn,
     createStringColumn,
+    formatNumber,
     resolveToString,
 } from '@ifrc-go/ui/utils';
 import {
@@ -415,10 +416,11 @@ function Extraction() {
 
     const data = extractionsResponse?.extractions?.results;
 
-    const heading = resolveToString(
-        'All Extraction ({numAppeals})',
-        { numAppeals: extractionsResponse?.extractions?.totalCount },
-    );
+    const tableHeading = isDefined(extractionsResponse?.extractions?.totalCount)
+        ? resolveToString(
+            'Extractions ({totalExtractions})',
+            { totalExtractions: formatNumber(extractionsResponse?.extractions?.totalCount) },
+        ) : 'Extractions';
 
     return (
         <Page
@@ -472,7 +474,7 @@ function Extraction() {
                 </ResponsiveContainer>
             </div>
             <Container
-                heading={heading}
+                heading={tableHeading}
                 withHeaderBorder
                 className={styles.extractionTable}
                 footerActions={isDefined(data) && (
