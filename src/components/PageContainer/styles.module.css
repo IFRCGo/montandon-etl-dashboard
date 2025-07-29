@@ -1,0 +1,15 @@
+.page-container {
+    display: flex;
+    align-items: center;
+    flex-grow: 1;
+
+    .content {
+        margin: 0 auto;
+        padding: var(--go-ui-spacing-lg);
+        width: 100%;
+
+        @media screen {
+            max-width: var(--go-ui-page-width-max);
+        }
+    }
+}

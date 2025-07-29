@@ -15,8 +15,7 @@ import {
     type PyStacLoadDataItemTypeEnum,
     type SourceTypeEnum,
 } from '#generated/types/graphql';
-// eslint-disable-next-line import/no-cycle
-import { TabType } from '#views/Home';
+import { type TabType } from '#utils/common';
 
 import styles from './styles.module.css';
 
@@ -57,12 +56,13 @@ const itemTypeKeySelector = (option: {key: PyStacLoadDataItemTypeEnum; label: st
 // eslint-disable-next-line max-len
 const itemTypeLabelSelector = (option: {key: PyStacLoadDataItemTypeEnum; label: string}) => option.label;
 
-export interface Filter {
+interface Filter {
     createdAtStart?: string | undefined;
     createdAtEnd?: string | undefined;
     traceId?: string | undefined;
     source?: SourceTypeEnum | undefined;
-    status?: DataStatusTypeEnum | undefined;
+    extractionTransformStatus?: DataStatusTypeEnum | undefined;
+    loadStatus?: DataStatusTypeEnum | undefined;
     itemType?: PyStacLoadDataItemTypeEnum | undefined;
 }
 
@@ -91,16 +91,18 @@ export default function Filters(props: Props) {
 
     // FIXME: Fix the sources variable
     const sourceOptions = useMemo(() => (
-        filterEnumsResponse?.enums?.DataStatusTypeEnum
+        filterEnumsResponse?.enums?.ExtractionDataSource
     ), [filterEnumsResponse]);
 
-    const statusOptions = useMemo(() => (
-        activeTab === 'load'
-            ? filterEnumsResponse?.enums?.PyStacLoadDataStatus
-            : filterEnumsResponse?.enums?.DataStatusTypeEnum
+    const loadStatusOptions = useMemo(() => (
+        filterEnumsResponse?.enums?.PyStacLoadDataStatus
     ), [
         filterEnumsResponse,
-        activeTab,
+    ]);
+    const extractionTransformStatusOptions = useMemo(() => (
+        filterEnumsResponse?.enums?.DataStatusTypeEnum
+    ), [
+        filterEnumsResponse,
     ]);
 
     const itemTypeOptions = useMemo(() => (
@@ -131,16 +133,31 @@ export default function Filters(props: Props) {
                 value={rawFilter.source}
                 onChange={setFilterField}
             />
-            <SelectInput
-                name="status"
-                label="Status"
-                placeholder="Status"
-                options={statusOptions}
-                keySelector={statusKeySelector}
-                labelSelector={statusLabelSelector}
-                value={rawFilter.status}
-                onChange={setFilterField}
-            />
+            {activeTab === 'load'
+                ? (
+                    <SelectInput
+                        name="loadStatus"
+                        label="Status"
+                        placeholder="Status"
+                        options={loadStatusOptions}
+                        keySelector={statusKeySelector}
+                        labelSelector={statusLabelSelector}
+                        value={rawFilter.loadStatus}
+                        onChange={setFilterField}
+                    />
+                )
+                : (
+                    <SelectInput
+                        name="extractionTransformStatus"
+                        label="Status"
+                        placeholder="Status"
+                        options={extractionTransformStatusOptions}
+                        keySelector={statusKeySelector}
+                        labelSelector={statusLabelSelector}
+                        value={rawFilter.extractionTransformStatus}
+                        onChange={setFilterField}
+                    />
+                )}
             {activeTab === 'load' && (
                 <SelectInput
                     name="itemType"

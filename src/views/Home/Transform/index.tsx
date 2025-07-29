@@ -42,6 +42,7 @@ import {
 
 import BulkRetriggerAction from '#components/BulkRetriggerAction';
 import Page from '#components/Page';
+import StatusTag, { type Props as StatusTagProps } from '#components/StatusTag';
 import {
     type DataStatusTypeEnum,
     type PyStacLoadDataItemTypeEnum,
@@ -120,7 +121,10 @@ const RETRIGGER_TRANSFORMS = gql`
         }) {
             errors
             ok
-            result
+            result {
+                status
+                taskId
+            }
         }
     }
 `;
@@ -135,12 +139,12 @@ const ASC = 'ASC';
 const DESC = 'DESC';
 const emptyArray: [] = [];
 
-export interface Filter {
+interface Filter {
     createdAtStart?: string | undefined;
     createdAtEnd?: string | undefined;
     traceId?: string | undefined;
     source?: SourceTypeEnum | undefined;
-    status?: DataStatusTypeEnum | undefined;
+    extractionTransformStatus?: DataStatusTypeEnum | undefined;
     itemType?: PyStacLoadDataItemTypeEnum | undefined;
 }
 
@@ -167,7 +171,7 @@ function Transformation(props: Props) {
         createdAtEnd?: string;
         traceId?: string;
         source?: SourceTypeEnum;
-        status?: DataStatusTypeEnum;
+        extractionTransformStatus?: DataStatusTypeEnum;
     }>({
         filter: {},
         pageSize: PAGE_SIZE,
@@ -187,6 +191,7 @@ function Transformation(props: Props) {
             createdAtStart,
             createdAtEnd,
             traceId,
+            extractionTransformStatus,
             ...otherFilters
         } = filter;
 
@@ -209,6 +214,7 @@ function Transformation(props: Props) {
                 createdAt: isDefined(createdAt.gte)
                     || isDefined(createdAt.lte) ? createdAt : undefined,
                 traceId: traceId ? { exact: traceId } : undefined,
+                status: extractionTransformStatus,
             },
         };
     }, [
@@ -219,7 +225,7 @@ function Transformation(props: Props) {
     ]);
 
     const {
-        data: transformationResponse,
+        data: transformResponse,
         loading: transformationsLoading,
         error: transformationsError,
     } = useQuery<TransformsQuery, TransformsQueryVariables>(
@@ -281,10 +287,10 @@ function Transformation(props: Props) {
     }, [selectedIds]);
 
     const dataWithSelection = useMemo(() => (
-        transformationResponse?.transforms.results ?? []).map((item) => ({
+        transformResponse?.transforms.results ?? []).map((item) => ({
         ...item,
         isSelected: selectedIds.includes(item.id),
-    })), [transformationResponse, selectedIds]);
+    })), [transformResponse, selectedIds]);
 
     const handleCheckboxChange = useCallback((id: string, checked: boolean) => {
         setSelectedIds((prev) => {
@@ -304,7 +310,7 @@ function Transformation(props: Props) {
     const sourceOptions = filterEnumsResponse?.enums?.ExtractionDataSource;
     const statusOptions = filterEnumsResponse?.enums?.DataStatusTypeEnum;
 
-    const extractionDataByTransformation = transformationResponse?.statusSourceCountsTransform;
+    const extractionDataByTransformation = transformResponse?.statusSourceCountsTransform;
 
     const columns = useMemo(
         () => ([
@@ -346,13 +352,15 @@ function Transformation(props: Props) {
                     sortable: true,
                 },
             ),
-            createStringColumn<TransformationDataItem, string>(
+            createElementColumn<TransformationDataItem, string, StatusTagProps<string>>(
                 'status',
                 'Status',
-                (item) => getEnumLabelFromValue(
-                    item.status,
-                    statusOptions ?? [],
-                ),
+                StatusTag,
+                (_, item) => ({
+                    name: item.id,
+                    label: getEnumLabelFromValue(item.status, statusOptions ?? []) ?? '-',
+                    status: item.status,
+                }),
                 {
                     sortable: true,
                 },
@@ -408,11 +416,17 @@ function Transformation(props: Props) {
         ],
     );
 
-    const data = transformationResponse?.transforms.results;
-    const heading = resolveToString(
-        'All Transformation ({numAppeals})',
-        { numAppeals: transformationResponse?.transforms?.totalCount },
-    );
+    const data = transformResponse?.transforms.results;
+    const heading = useMemo(() => (
+        resolveToString(
+            'All Transformation ({totalCount})',
+            {
+                totalCount: isDefined(transformResponse?.transforms?.totalCount)
+                    ? transformResponse?.transforms?.totalCount
+                    : 0,
+            },
+        )
+    ), [transformResponse?.transforms?.totalCount]);
 
     return (
         <Page
@@ -422,17 +436,17 @@ function Transformation(props: Props) {
             <div className={styles.figures}>
                 <div className={styles.keyFigures}>
                     <KeyFigure
-                        value={transformationResponse?.statusCountTransform[0]?.successCount}
+                        value={transformResponse?.statusCountTransform[0]?.successCount}
                         label="Total Transforms Succeeded"
                         className={styles.keyFigureItem}
                     />
                     <KeyFigure
-                        value={transformationResponse?.statusCountTransform[0]?.failedCount}
+                        value={transformResponse?.statusCountTransform[0]?.failedCount}
                         label="Total Transforms Failed"
                         className={styles.keyFigureItem}
                     />
                     <KeyFigure
-                        value={transformationResponse?.statusCountTransform[0]?.pendingCount}
+                        value={transformResponse?.statusCountTransform[0]?.pendingCount}
                         label="Total Transforms Pending"
                         className={styles.keyFigureItem}
                     />
@@ -455,10 +469,11 @@ function Transformation(props: Props) {
                         <YAxis />
                         <Tooltip />
                         <Legend />
-                        <Bar dataKey="failedCount" stackId="a" fill="#a56eff" />
-                        <Bar dataKey="inProgressCount" stackId="a" fill="#009d9a" />
-                        <Bar dataKey="pendingCount" stackId="a" fill="#002d9c" />
-                        <Bar dataKey="successCount" stackId="a" fill="#fa4d56" />
+                        <Bar dataKey="failedCount" stackId="a" fill="#F75C65" />
+                        <Bar dataKey="inProgressCount" stackId="a" fill="#d9b100" />
+                        <Bar dataKey="pendingCount" stackId="a" fill="#FF8000" />
+                        <Bar dataKey="successCount" stackId="a" fill="#7FB845" />
+                        <Bar dataKey="onRetryCount" stackId="a" fill="#8648B3" />
                     </BarChart>
                 </ResponsiveContainer>
             </div>
@@ -469,7 +484,7 @@ function Transformation(props: Props) {
                 footerActions={isDefined(data) && (
                     <Pager
                         activePage={page}
-                        itemsCount={transformationResponse?.transforms.totalCount ?? 0}
+                        itemsCount={transformResponse?.transforms.totalCount ?? 0}
                         maxItemsPerPage={limit}
                         onActivePageChange={setPage}
                     />

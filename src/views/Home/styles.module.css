@@ -1,9 +1,11 @@
 .home {
+    gap: var(--go-ui-spacing-lg);
+
     .main-section {
         display: flex;
         flex-direction: column;
-        padding: var(--go-ui-spacing-sm) !important;
-        gap: var(--go-ui-spacing-xl) !important;
+        gap: var(--go-ui-spacing-lg);
+
     }
 
     .key-figures {

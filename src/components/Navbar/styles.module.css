@@ -1,0 +1,20 @@
+.navbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    border-bottom: var(--go-ui-width-separator-thin) solid var(--go-ui-color-separator);
+    background-color: var(--go-ui-color-white);
+    gap: var(--go-ui-spacing-md) var(--go-ui-spacing-lg);
+
+    .brand {
+        display: flex;
+        align-items: flex-start;
+        flex-grow: 1;
+        flex-wrap: wrap;
+        gap: var(--go-ui-spacing-sm);
+
+        .go-icon {
+            height: var(--go-ui-height-brand-icon);
+        }
+    }
+}

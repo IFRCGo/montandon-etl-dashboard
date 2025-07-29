@@ -1,16 +1,16 @@
 import { isNotDefined } from '@togglecorp/fujs';
 
 import {
+    type AppEnumCollectionDataStatusTypeEnum,
     type AppEnumCollectionExtractionDataSource,
     type AppEnumCollectionExtractionDataSourceValidationStatus,
-    type AppEnumCollectionExtractionDataStatus,
     type AppEnumCollectionPyStacLoadDataItemType,
     type AppEnumCollectionPyStacLoadDataStatus,
 } from '#generated/types/graphql';
 
 type EnumType = NonNullable<AppEnumCollectionExtractionDataSource
     | AppEnumCollectionExtractionDataSourceValidationStatus
-    | AppEnumCollectionExtractionDataStatus
+    | AppEnumCollectionDataStatusTypeEnum
     | AppEnumCollectionPyStacLoadDataItemType
     | AppEnumCollectionPyStacLoadDataStatus>;
 
@@ -24,3 +24,5 @@ export default function getEnumLabelFromValue(enumKey: EnumType['label'], enumLi
     }
     return foundItem?.label;
 }
+
+export type TabType = 'extraction' | 'transformation' | 'load';

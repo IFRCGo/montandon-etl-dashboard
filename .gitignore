@@ -30,3 +30,4 @@ build-ssr
 .env*
 .eslintcache
 tsconfig.tsbuildinfo
+vite.config.ts*

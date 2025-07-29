@@ -36,8 +36,8 @@ import {
 } from 'recharts';
 
 import Page from '#components/Page';
+import StatusTag, { type Props as StatusTagProps } from '#components/StatusTag';
 import {
-    type DataStatusTypeEnum,
     type FilterEnumsQuery,
     type IdBaseFilterLookup,
     type LoadQuery,
@@ -100,12 +100,12 @@ const PAGE_SIZE = 20;
 const ASC = 'ASC';
 const DESC = 'DESC';
 
-export interface Filter {
+interface Filter {
     createdAtStart?: string | undefined;
     createdAtEnd?: string | undefined;
     traceId?: string | undefined;
     source?: SourceTypeEnum | undefined;
-    status?: DataStatusTypeEnum | undefined;
+    loadStatus?: PyStacLoadDataStatusEnum | undefined;
     itemType?: PyStacLoadDataItemTypeEnum | undefined;
 }
 
@@ -119,6 +119,7 @@ function Load(props: Props) {
         filter,
         filtered,
     } = props;
+
     const [page, setPage] = useState<number>(1);
     const {
         sortState,
@@ -129,7 +130,7 @@ function Load(props: Props) {
         createdAtEnd?: string;
         traceId?: string;
         source?: SourceTypeEnum;
-        status?: PyStacLoadDataStatusEnum;
+        loadStatus?: PyStacLoadDataStatusEnum;
         itemType?: PyStacLoadDataItemTypeEnum;
     }>({
         filter: {},
@@ -150,7 +151,9 @@ function Load(props: Props) {
             createdAtStart,
             createdAtEnd,
             traceId,
-            ...otherFilters
+            loadStatus,
+            source,
+            itemType,
         } = filter;
 
         const createdAt: LoadFilterType['createdAt'] = {};
@@ -168,10 +171,12 @@ function Load(props: Props) {
             },
             order,
             filters: {
-                ...otherFilters,
                 createdAt: isDefined(createdAt.gte)
                     || isDefined(createdAt.lte) ? createdAt : undefined,
                 traceId: traceId ? { exact: traceId } as IdBaseFilterLookup : undefined,
+                status: loadStatus,
+                source,
+                itemType,
             },
         };
     }, [
@@ -258,13 +263,15 @@ function Load(props: Props) {
                     format: 'MM/dd/yyyy hh:mm:ss',
                 }),
             ),
-            createStringColumn<LoadDataItemType, string>(
+            createElementColumn<LoadDataItemType, string, StatusTagProps<string>>(
                 'status',
                 'Status',
-                (item) => getEnumLabelFromValue(
-                    item.status,
-                    statusOptions ?? [],
-                ),
+                StatusTag,
+                (_, item) => ({
+                    name: item.id,
+                    label: getEnumLabelFromValue(item.status, statusOptions ?? []) ?? '-',
+                    status: item.status,
+                }),
                 {
                     sortable: true,
                 },
@@ -295,10 +302,16 @@ function Load(props: Props) {
 
     const data = loadResponse?.pystacs.results;
 
-    const heading = resolveToString(
-        'All Load ({numAppeals})',
-        { numAppeals: loadResponse?.pystacs.totalCount },
-    );
+    const heading = useMemo(() => (
+        resolveToString(
+            'All Load ({totalCount})',
+            {
+                totalCount: isDefined(loadResponse?.pystacs?.totalCount)
+                    ? loadResponse?.pystacs?.totalCount
+                    : 0,
+            },
+        )
+    ), [loadResponse?.pystacs?.totalCount]);
 
     return (
         <Page
@@ -341,10 +354,9 @@ function Load(props: Props) {
                         <YAxis />
                         <Tooltip />
                         <Legend />
-                        <Bar dataKey="failedCount" stackId="a" fill="#a56eff" />
-                        <Bar dataKey="inProgressCount" stackId="a" fill="#009d9a" />
-                        <Bar dataKey="pendingCount" stackId="a" fill="#002d9c" />
-                        <Bar dataKey="successCount" stackId="a" fill="#fa4d56" />
+                        <Bar dataKey="failedCount" stackId="a" fill="#F75C65" />
+                        <Bar dataKey="pendingCount" stackId="a" fill="#FF8000" />
+                        <Bar dataKey="successCount" stackId="a" fill="#7FB845" />
                     </BarChart>
                 </ResponsiveContainer>
             </div>

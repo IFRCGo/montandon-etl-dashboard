@@ -2,7 +2,6 @@
     .main-section {
         display: flex;
         flex-direction: column;
-        padding: var(--go-ui-spacing-lg) !important;
         gap: var(--go-ui-spacing-xl);
     }
 

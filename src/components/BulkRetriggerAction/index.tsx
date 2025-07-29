@@ -1,4 +1,3 @@
-import { CloseLineIcon } from '@ifrc-go/icons';
 import {
     Button,
     ConfirmButton,
@@ -23,7 +22,6 @@ function BulkRetriggerAction(props: Props) {
     return (
         <Container
             className={styles.retriggerAction}
-            heading="Items selected for retrigger"
             footerActions={(
                 <>
                     <ConfirmButton

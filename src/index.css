@@ -8,6 +8,7 @@ html {
     scrollbar-gutter: stable;
 }
 body {
+    margin: 0;
     line-height: var(--go-ui-line-height-md);
     color: var(--go-ui-color-text);
     font-family: var(--go-ui-font-family-sans-serif);

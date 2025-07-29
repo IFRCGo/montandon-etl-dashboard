@@ -7,14 +7,18 @@ import {
     Tabs,
 } from '@ifrc-go/ui';
 
+import Navbar from '#components/Navbar';
 import Page from '#components/Page';
 import {
     type DataStatusTypeEnum,
     type PyStacLoadDataItemTypeEnum,
+    type PyStacLoadDataStatusEnum,
     type SourceTypeEnum,
 } from '#generated/types/graphql';
 import useFilterState from '#hooks/useFilterState';
+import { type TabType } from '#utils/common';
 
+// eslint-disable-next-line import/no-cycle
 import Extraction from './Extraction';
 import Filters from './Filters';
 import Load from './Load';
@@ -24,7 +28,6 @@ import styles from './styles.module.css';
 
 const PAGE_SIZE = 20;
 
-export type TabType = 'extraction' | 'transformation' | 'load';
 /** @knipignore */
 // eslint-disable-next-line import/prefer-default-export
 export function Component() {
@@ -43,7 +46,8 @@ export function Component() {
         createdAtEnd?: string;
         traceId?: string;
         source?: SourceTypeEnum;
-        status?: DataStatusTypeEnum;
+        extractionTransformStatus?: DataStatusTypeEnum;
+        loadStatus?: PyStacLoadDataStatusEnum;
         itemType?: PyStacLoadDataItemTypeEnum;
     }>({
         filter: {},
@@ -51,66 +55,69 @@ export function Component() {
     });
 
     return (
-        <Page
-            className={styles.home}
-            mainSectionClassName={styles.mainSection}
-        >
-            <Filters
-                activeTab={activeTab}
-                setFilterField={setFilterField}
-                resetFilter={resetFilter}
-                rawFilter={rawFilter}
-                filtered={filtered}
-            />
-            <Tabs
-                value={activeTab}
-                onChange={setActiveTab}
+        <>
+            <Navbar />
+            <Page
+                className={styles.home}
+                mainSectionClassName={styles.mainSection}
+                heading="Montandon ETL Monitoring Dashboard"
             >
-                <Container
-                    headerDescription={(
-                        <TabList>
-                            <Tab
-                                name="extraction"
-                            >
-                                Extraction
-                            </Tab>
-                            <Tab name="transformation">
-                                Transformation
-                            </Tab>
-                            <Tab name="load">
-                                Load
-                            </Tab>
-                        </TabList>
-                    )}
+                <Filters
+                    activeTab={activeTab}
+                    setFilterField={setFilterField}
+                    resetFilter={resetFilter}
+                    rawFilter={rawFilter}
+                    filtered={filtered}
                 />
-                <TabPanel
-                    name="extraction"
+                <Tabs
+                    value={activeTab}
+                    onChange={setActiveTab}
                 >
-                    <Extraction
-                        filter={rawFilter}
-                        filtered={filtered}
+                    <Container
+                        headerDescription={(
+                            <TabList>
+                                <Tab
+                                    name="extraction"
+                                >
+                                    Extraction
+                                </Tab>
+                                <Tab name="transformation">
+                                    Transformation
+                                </Tab>
+                                <Tab name="load">
+                                    Load
+                                </Tab>
+                            </TabList>
+                        )}
                     />
-                </TabPanel>
-                <TabPanel
-                    name="transformation"
-                >
-                    <Transformation
-                        filter={rawFilter}
-                        filtered={filtered}
-                    />
-                </TabPanel>
-                <TabPanel
-                    name="load"
-                >
-                    <Load
-                        filter={rawFilter}
-                        filtered={filtered}
-                    />
-                </TabPanel>
+                    <TabPanel
+                        name="extraction"
+                    >
+                        <Extraction
+                            filter={rawFilter}
+                            filtered={filtered}
+                        />
+                    </TabPanel>
+                    <TabPanel
+                        name="transformation"
+                    >
+                        <Transformation
+                            filter={rawFilter}
+                            filtered={filtered}
+                        />
+                    </TabPanel>
+                    <TabPanel
+                        name="load"
+                    >
+                        <Load
+                            filter={rawFilter}
+                            filtered={filtered}
+                        />
+                    </TabPanel>
 
-            </Tabs>
-
-        </Page>
+                </Tabs>
+            </Page>
+        </>
     );
 }
 

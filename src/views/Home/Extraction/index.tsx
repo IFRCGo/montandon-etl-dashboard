@@ -9,6 +9,7 @@ import {
     useMutation,
     useQuery,
 } from '@apollo/client';
+import { ExternalLinkFillIcon } from '@ifrc-go/icons';
 import {
     Checkbox,
     type CheckboxProps,
@@ -41,6 +42,7 @@ import {
 
 import BulkRetriggerAction from '#components/BulkRetriggerAction';
 import Page from '#components/Page';
+import StatusTag, { type Props as StatusTagProps } from '#components/StatusTag';
 import {
     type DataStatusTypeEnum,
     type ExtractionsQuery,
@@ -52,8 +54,6 @@ import {
 import useAlert from '#hooks/useAlert';
 import useFilterState from '#hooks/useFilterState';
 import getEnumLabelFromValue from '#utils/common';
-// eslint-disable-next-line import/no-cycle
-import { Filter } from '#views/Home/Filters';
 
 import styles from './styles.module.css';
 
@@ -112,7 +112,10 @@ const RETRIGGER_EXTRACTIONS = gql`
         }) {
             errors
             ok
-            result
+            result {
+                status
+                taskId
+            }
         }
     }
 `;
@@ -155,6 +158,14 @@ const ASC = 'ASC';
 const DESC = 'DESC';
 const emptyArray: [] = [];
 
+interface Filter {
+    createdAtStart?: string | undefined;
+    createdAtEnd?: string | undefined;
+    traceId?: string | undefined;
+    source?: SourceTypeEnum | undefined;
+    extractionTransformStatus?: DataStatusTypeEnum | undefined;
+}
+
 interface Props {
     filter: Filter;
     filtered: boolean;
@@ -178,7 +189,7 @@ function Extraction(props: Props) {
         createdAtEnd?: string;
         traceId?: string;
         source?: SourceTypeEnum;
-        status?: DataStatusTypeEnum;
+        extractionTransformStatus?: DataStatusTypeEnum;
     }>({
         filter: {},
         pageSize: PAGE_SIZE,
@@ -198,6 +209,7 @@ function Extraction(props: Props) {
             createdAtStart,
             createdAtEnd,
             traceId,
+            extractionTransformStatus,
             ...otherFilters
         } = filter;
 
@@ -220,6 +232,7 @@ function Extraction(props: Props) {
                 createdAt: isDefined(createdAt.gte)
                     || isDefined(createdAt.lte) ? createdAt : undefined,
                 traceId: traceId ? { exact: traceId } : undefined,
+                status: extractionTransformStatus,
             },
         };
     }, [
@@ -360,34 +373,28 @@ function Extraction(props: Props) {
                     sortable: true,
                 },
             ),
+            createElementColumn<ExtractionDataItemType, string, StatusTagProps<string>>(
+                'extractionTransformStatus',
+                'Status',
+                StatusTag,
+                (_, item) => ({
+                    name: item.id,
+                    label: getEnumLabelFromValue(item.status, statusOptions ?? []) ?? '-',
+                    status: item.status,
+                }),
+                {
+                    sortable: true,
+                },
+            ),
+            createNumberColumn<ExtractionDataItemType, string>(
+                'respCode',
+                'HTTP Response Code',
+                (item) => item.respCode,
+            ),
             createStringColumn<ExtractionDataItemType, string>(
                 'respDataType',
                 'Response data Type',
                 (item) => item.respDataType,
-            ),
-            createElementColumn<ExtractionDataItemType, string, { url: string }>(
-                'url',
-                'Source url',
-                ({ url }) => (
-                    <a
-                        className={styles.actions}
-                        href={url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                    >
-                        {url}
-                    </a>
-                ),
-                (_, item) => ({ url: item.url }),
-                { columnClassName: styles.url },
-            ),
-            createStringColumn<ExtractionDataItemType, string>(
-                'sourceValidationStatus',
-                'Source validation Status',
-                (item) => getEnumLabelFromValue(
-                    item.sourceValidationStatus,
-                    filterEnumsResponse?.enums?.ExtractionDataSourceValidationStatus ?? [],
-                ),
             ),
             /*
                 TODO: IF hazard types are saved in the server, show this.
@@ -400,17 +407,6 @@ function Extraction(props: Props) {
                     },
                 ),
             */
-            createStringColumn<ExtractionDataItemType, string>(
-                'status',
-                'Status',
-                (item) => getEnumLabelFromValue(
-                    item.status,
-                    statusOptions ?? [],
-                ),
-                {
-                    sortable: true,
-                },
-            ),
             createNumberColumn<ExtractionDataItemType, string>(
                 'fileSize',
                 'File Size',
@@ -433,15 +429,25 @@ function Extraction(props: Props) {
                     columnClassName: styles.revisionId,
                 },
             ),
-            createNumberColumn<ExtractionDataItemType, string>(
-                'respCode',
-                'Response Code',
-                (item) => item.respCode,
+            createElementColumn<ExtractionDataItemType, string, { url: string }>(
+                'url',
+                'Source url',
+                ({ url }) => (
+                    <a
+                        className={styles.actions}
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        <ExternalLinkFillIcon />
+                    </a>
+                ),
+                (_, item) => ({ url: item.url }),
+                { columnClassName: styles.url },
             ),
         ]),
         [
             handleCheckboxChange,
-            filterEnumsResponse?.enums?.ExtractionDataSourceValidationStatus,
             sourceOptions,
             statusOptions,
         ],
@@ -449,10 +455,16 @@ function Extraction(props: Props) {
 
     const data = extractionsResponse?.extractions?.results;
 
-    const heading = resolveToString(
-        'All Extraction ({numAppeals})',
-        { numAppeals: extractionsResponse?.extractions?.totalCount },
-    );
+    const heading = useMemo(() => (
+        resolveToString(
+            'All Extraction ({totalCount})',
+            {
+                totalCount: isDefined(extractionsResponse?.extractions?.totalCount)
+                    ? extractionsResponse?.extractions?.totalCount
+                    : 0,
+            },
+        )
+    ), [extractionsResponse?.extractions?.totalCount]);
 
     return (
         <Page
@@ -498,10 +510,11 @@ function Extraction(props: Props) {
                         <YAxis />
                         <Tooltip />
                         <Legend />
-                        <Bar dataKey="failedCount" stackId="a" fill="#a56eff" />
-                        <Bar dataKey="inProgressCount" stackId="a" fill="#009d9a" />
-                        <Bar dataKey="pendingCount" stackId="a" fill="#002d9c" />
-                        <Bar dataKey="successCount" stackId="a" fill="#fa4d56" />
+                        <Bar dataKey="failedCount" stackId="a" fill="#F75C65" />
+                        <Bar dataKey="inProgressCount" stackId="a" fill="#d9b100" />
+                        <Bar dataKey="pendingCount" stackId="a" fill="#FF8000" />
+                        <Bar dataKey="successCount" stackId="a" fill="#7FB845" />
+                        <Bar dataKey="onRetryCount" stackId="a" fill="#8648B3" />
                     </BarChart>
                 </ResponsiveContainer>
             </div>
