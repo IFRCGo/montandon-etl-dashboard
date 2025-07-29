@@ -31,14 +31,26 @@ import { SortContext } from '@ifrc-go/ui/contexts';
 import {
     createElementColumn,
     createStringColumn,
+    formatNumber,
     resolveToString,
 } from '@ifrc-go/ui/utils';
 import {
     isDefined,
     isNotDefined,
 } from '@togglecorp/fujs';
+import {
+    Bar,
+    BarChart,
+    CartesianGrid,
+    Legend,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis,
+} from 'recharts';
 
 import Page from '#components/Page';
+import StatusTag, { type Props as StatusTagProps } from '#components/StatusTag';
 import {
     type DataStatusTypeEnum,
     type FilterEnumsQuery,
@@ -57,10 +69,15 @@ import styles from './styles.module.css';
 
 const TRANSFORMS = gql`
     query transforms (
+        $order: TransformOrder,
         $pagination: OffsetPaginationInput,
         $filters: TransformDataFilter,
     ) {
-        transforms(filters: $filters, pagination: $pagination) {
+        transforms(
+            filters: $filters,
+            pagination: $pagination,
+            order: $order,
+        ) {
             totalCount
             pageInfo {
                 limit
@@ -84,6 +101,13 @@ const TRANSFORMS = gql`
             failedCount
             inProgressCount
             pendingCount
+            successCount
+        }
+        statusSourceCountsTransform {
+            failedCount
+            inProgressCount
+            pendingCount
+            source
             successCount
         }
         statusSourceCountsTransform {
@@ -139,10 +163,10 @@ function Transformation() {
         traceId?: string;
         source?: SourceTypeEnum;
         status?: DataStatusTypeEnum;
-      }>({
-          filter: {},
-          pageSize: PAGE_SIZE,
-      });
+    }>({
+        filter: {},
+        pageSize: PAGE_SIZE,
+    });
 
     const order = useMemo(() => {
         if (isNotDefined(sortState.sorting)) {
@@ -178,7 +202,7 @@ function Transformation() {
             filters: {
                 ...otherFilters,
                 createdAt: isDefined(createdAt.gte)
-                || isDefined(createdAt.lte) ? createdAt : undefined,
+                    || isDefined(createdAt.lte) ? createdAt : undefined,
                 traceId: traceId ? { exact: traceId } : undefined,
             },
         };
@@ -274,6 +298,8 @@ function Transformation() {
     const sourceOptions = filterEnumsResponse?.enums?.ExtractionDataSource;
     const statusOptions = filterEnumsResponse?.enums?.ExtractionDataStatus;
 
+    const extractionDataByTransformation = transformationResponse?.statusSourceCountsTransform;
+
     const columns = useMemo(
         () => ([
             createElementColumn<TransformationDataItem, string, CheckboxProps<string>>(
@@ -299,6 +325,9 @@ function Transformation() {
                 'id',
                 'Transform Id',
                 (item) => item.id,
+                {
+                    sortable: true,
+                },
             ),
             createStringColumn<TransformationDataItem, string>(
                 'source',
@@ -311,13 +340,15 @@ function Transformation() {
                     sortable: true,
                 },
             ),
-            createStringColumn<TransformationDataItem, string>(
+            createElementColumn<TransformationDataItem, string, StatusTagProps<string>>(
                 'status',
                 'Status',
-                (item) => getEnumLabelFromValue(
-                    item.status,
-                    statusOptions ?? [],
-                ),
+                StatusTag,
+                (_, item) => ({
+                    name: item.id,
+                    label: getEnumLabelFromValue(item.status, statusOptions ?? []) ?? '-',
+                    status: item.status,
+                }),
                 {
                     sortable: true,
                 },
@@ -329,7 +360,6 @@ function Transformation() {
                 (_, item) => ({
                     value: item.createdAt,
                     format: 'MM/dd/yyyy hh:mm:ss',
-                    sortable: true,
                 }),
             ),
             createElementColumn<TransformationDataItem, string, DateOutputProps>(
@@ -339,7 +369,6 @@ function Transformation() {
                 (_, item) => ({
                     value: item.startedAt,
                     format: 'MM/dd/yyyy hh:mm:ss',
-                    sortable: true,
                 }),
             ),
             createElementColumn<TransformationDataItem, string, DateOutputProps>(
@@ -349,18 +378,23 @@ function Transformation() {
                 (_, item) => ({
                     value: item.endedAt,
                     format: 'MM/dd/yyyy hh:mm:ss',
-                    sortable: true,
                 }),
             ),
             createStringColumn<TransformationDataItem, string>(
                 'extraction',
                 'Extraction Id',
                 (item) => item.extraction?.pk,
+                {
+                    sortable: true,
+                },
             ),
             createStringColumn<TransformationDataItem, string>(
                 'traceId',
                 'Trace Id',
                 (item) => item.traceId,
+                {
+                    sortable: true,
+                },
             ),
         ]),
         [
@@ -371,36 +405,65 @@ function Transformation() {
     );
 
     const data = transformationResponse?.transforms.results;
-    const heading = resolveToString(
-        'All Transformation ({numAppeals})',
-        { numAppeals: transformationResponse?.transforms?.totalCount },
-    );
+
+    const tableHeading = isDefined(transformationResponse?.transforms?.totalCount)
+        ? resolveToString(
+            'Transforms ({totalExtractions})',
+            { totalExtractions: formatNumber(transformationResponse?.transforms?.totalCount) },
+        ) : 'Transforms';
+
     return (
         <Page
             className={styles.transformation}
             mainSectionClassName={styles.mainSection}
         >
-            <div className={styles.keyFigures}>
-                <KeyFigure
-                    value={transformationResponse?.statusCountTransform[0]?.successCount}
-                    label="Total Transforms Succeeded"
-                    className={styles.keyFigureItem}
-                />
-                <KeyFigure
-                    value={transformationResponse?.statusCountTransform[0]?.failedCount}
-                    label="Total Transforms Failed"
-                    className={styles.keyFigureItem}
-                />
-                <KeyFigure
-                    value={transformationResponse?.statusCountTransform[0]?.pendingCount}
-                    label="Total Transforms Pending"
-                    className={styles.keyFigureItem}
-                />
+            <div className={styles.figures}>
+                <div className={styles.keyFigures}>
+                    <KeyFigure
+                        value={transformationResponse?.statusCountTransform[0]?.successCount}
+                        label="Total Transforms Succeeded"
+                        className={styles.keyFigureItem}
+                    />
+                    <KeyFigure
+                        value={transformationResponse?.statusCountTransform[0]?.failedCount}
+                        label="Total Transforms Failed"
+                        className={styles.keyFigureItem}
+                    />
+                    <KeyFigure
+                        value={transformationResponse?.statusCountTransform[0]?.pendingCount}
+                        label="Total Transforms Pending"
+                        className={styles.keyFigureItem}
+                    />
+                </div>
+                <ResponsiveContainer
+                    width="100%"
+                    height={300}
+                >
+                    <BarChart
+                        data={extractionDataByTransformation}
+                        margin={{
+                            top: 20,
+                            right: 30,
+                            left: 20,
+                            bottom: 5,
+                        }}
+                    >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="source" />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey="failedCount" stackId="a" fill="#a56eff" />
+                        <Bar dataKey="inProgressCount" stackId="a" fill="#009d9a" />
+                        <Bar dataKey="pendingCount" stackId="a" fill="#002d9c" />
+                        <Bar dataKey="successCount" stackId="a" fill="#fa4d56" />
+                    </BarChart>
+                </ResponsiveContainer>
             </div>
             <Container
-                heading={heading}
+                heading={tableHeading}
                 withHeaderBorder
-                className={styles.extractionTable}
+                className={styles.transformTable}
                 footerActions={isDefined(data) && (
                     <Pager
                         activePage={page}

@@ -1,0 +1,22 @@
+.status {
+    &.success {
+        --color-border: var(--go-ui-color-green);
+        --color-background: var(--go-ui-color-green);
+    }
+    &.failed {
+        --color-border: var(--go-ui-color-red);
+        --color-background: var(--go-ui-color-red);
+    }
+    &.pending {
+        --color-border: var(--go-ui-color-orange);
+        --color-background: var(--go-ui-color-orange);
+    }
+    &.in-progress {
+        --color-border: var(--go-ui-color-yellow);
+        --color-background: var(--go-ui-color-yellow);
+    }
+    &.on-retry {
+        --color-border: var(--go-ui-color-purple-per);
+        --color-background: var(--go-ui-color-purple-per);
+    }
+}
