@@ -51,6 +51,7 @@ import {
 } from 'recharts';
 
 import Page from '#components/Page';
+import StatusTag, { type Props as StatusTagProps } from '#components/StatusTag';
 import {
     type FilterEnumsQuery,
     type IdBaseFilterLookup,
@@ -387,13 +388,15 @@ function Load() {
                     format: 'MM/dd/yyyy hh:mm:ss',
                 }),
             ),
-            createStringColumn<LoadDataItemType, string>(
+            createElementColumn<LoadDataItemType, string, StatusTagProps<string>>(
                 'status',
                 'Status',
-                (item) => getEnumLabelFromValue(
-                    item.status,
-                    statusOptions ?? [],
-                ),
+                StatusTag,
+                (_, item) => ({
+                    name: item.id,
+                    label: getEnumLabelFromValue(item.status, statusOptions ?? []) ?? '-',
+                    status: item.status,
+                }),
                 {
                     sortable: true,
                 },

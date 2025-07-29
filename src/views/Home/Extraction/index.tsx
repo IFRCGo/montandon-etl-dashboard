@@ -10,7 +10,10 @@ import {
     useMutation,
     useQuery,
 } from '@apollo/client';
-import { CloseLineIcon } from '@ifrc-go/icons';
+import {
+    CloseLineIcon,
+    ExternalLinkFillIcon,
+} from '@ifrc-go/icons';
 import {
     Button,
     Checkbox,
@@ -49,6 +52,7 @@ import {
 } from 'recharts';
 
 import Page from '#components/Page';
+import StatusTag, { type Props as StatusTagProps } from '#components/StatusTag';
 import {
     type DataStatusTypeEnum,
     type ExtractionsQuery,
@@ -335,34 +339,28 @@ function Extraction() {
                     sortable: true,
                 },
             ),
+            createElementColumn<ExtractionDataItemType, string, StatusTagProps<string>>(
+                'status',
+                'Status',
+                StatusTag,
+                (_, item) => ({
+                    name: item.id,
+                    label: getEnumLabelFromValue(item.status, statusOptions ?? []) ?? '-',
+                    status: item.status,
+                }),
+                {
+                    sortable: true,
+                },
+            ),
+            createNumberColumn<ExtractionDataItemType, string>(
+                'respCode',
+                'HTTP Response Code',
+                (item) => item.respCode,
+            ),
             createStringColumn<ExtractionDataItemType, string>(
                 'respDataType',
                 'Response data Type',
                 (item) => item.respDataType,
-            ),
-            createElementColumn<ExtractionDataItemType, string, { url: string }>(
-                'url',
-                'Source url',
-                ({ url }) => (
-                    <a
-                        className={styles.actions}
-                        href={url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                    >
-                        {url}
-                    </a>
-                ),
-                (_, item) => ({ url: item.url }),
-                { columnClassName: styles.url },
-            ),
-            createStringColumn<ExtractionDataItemType, string>(
-                'sourceValidationStatus',
-                'Source validation Status',
-                (item) => getEnumLabelFromValue(
-                    item.sourceValidationStatus,
-                    filterEnumsResponse?.enums?.ExtractionDataSourceValidationStatus ?? [],
-                ),
             ),
             /*
                 TODO: IF hazard types are saved in the server, show this.
@@ -375,17 +373,6 @@ function Extraction() {
                     },
                 ),
             */
-            createStringColumn<ExtractionDataItemType, string>(
-                'status',
-                'Status',
-                (item) => getEnumLabelFromValue(
-                    item.status,
-                    statusOptions ?? [],
-                ),
-                {
-                    sortable: true,
-                },
-            ),
             createStringColumn<ExtractionDataItemType, string>(
                 'parentId',
                 'Parent Id',
@@ -400,15 +387,25 @@ function Extraction() {
                     columnClassName: styles.revisionId,
                 },
             ),
-            createNumberColumn<ExtractionDataItemType, string>(
-                'respCode',
-                'Response Code',
-                (item) => item.respCode,
+            createElementColumn<ExtractionDataItemType, string, { url: string }>(
+                'url',
+                'Source url',
+                ({ url }) => (
+                    <a
+                        className={styles.actions}
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        <ExternalLinkFillIcon />
+                    </a>
+                ),
+                (_, item) => ({ url: item.url }),
+                { columnClassName: styles.url },
             ),
         ]),
         [
             handleCheckboxChange,
-            filterEnumsResponse?.enums?.ExtractionDataSourceValidationStatus,
             sourceOptions,
             statusOptions,
         ],
