@@ -10,18 +10,14 @@ import {
     useQuery,
 } from '@apollo/client';
 import {
-    Button,
     Checkbox,
     type CheckboxProps,
     Container,
-    DateInput,
     DateOutput,
     type DateOutputProps,
     KeyFigure,
     Pager,
-    SelectInput,
     Table,
-    TextInput,
 } from '@ifrc-go/ui';
 import { SortContext } from '@ifrc-go/ui/contexts';
 import {
@@ -48,7 +44,7 @@ import BulkRetriggerAction from '#components/BulkRetriggerAction';
 import Page from '#components/Page';
 import {
     type DataStatusTypeEnum,
-    type FilterEnumsQuery,
+    type PyStacLoadDataItemTypeEnum,
     type RetriggerTransformsMutation,
     type RetriggerTransformsMutationVariables,
     type SourceTypeEnum,
@@ -128,38 +124,44 @@ const RETRIGGER_TRANSFORMS = gql`
         }
     }
 `;
-type DataSourceType = NonNullable<NonNullable<NonNullable<FilterEnumsQuery['enums']>['ExtractionDataSource']>[number]>;
-type TransformsDataStatusType = NonNullable<NonNullable<NonNullable<FilterEnumsQuery['enums']>['ExtractionDataStatus']>[number]>;
 type TransformationDataItem = NonNullable<NonNullable<NonNullable<TransformsQuery['transforms']>['results']>[number]> & {
     isSelected: boolean;
 };
 type TransformFilterType = NonNullable<TransformsQueryVariables['filters']>;
 
-const sourceKeySelector = (option: DataSourceType) => option.key;
-const sourceLabelSelector = (option: DataSourceType) => option.label;
-const statusKeySelector = (option: TransformsDataStatusType) => option.key;
-const statusLabelSelector = (option: TransformsDataStatusType) => option.label;
 const keySelector = (item: { id: string }) => item.id;
 const PAGE_SIZE = 20;
 const ASC = 'ASC';
 const DESC = 'DESC';
 const emptyArray: [] = [];
 
-function Transformation() {
+export interface Filter {
+    createdAtStart?: string | undefined;
+    createdAtEnd?: string | undefined;
+    traceId?: string | undefined;
+    source?: SourceTypeEnum | undefined;
+    status?: DataStatusTypeEnum | undefined;
+    itemType?: PyStacLoadDataItemTypeEnum | undefined;
+}
+
+interface Props {
+    filter: Filter;
+    filtered: boolean;
+}
+
+function Transformation(props: Props) {
+    const {
+        filter,
+        filtered,
+    } = props;
     const alert = useAlert();
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [isRetriggerBannerVisible, setIsRetriggerBannerVisible] = useState(false);
+    const [page, setPage] = useState<number>(1);
     const {
         sortState,
         limit,
         offset,
-        page,
-        setPage,
-        rawFilter,
-        resetFilter,
-        filter,
-        setFilterField,
-        filtered,
     } = useFilterState<{
         createdAtStart?: string;
         createdAtEnd?: string;
@@ -300,7 +302,7 @@ function Transformation() {
     */
 
     const sourceOptions = filterEnumsResponse?.enums?.ExtractionDataSource;
-    const statusOptions = filterEnumsResponse?.enums?.ExtractionDataStatus;
+    const statusOptions = filterEnumsResponse?.enums?.DataStatusTypeEnum;
 
     const extractionDataByTransformation = transformationResponse?.statusSourceCountsTransform;
 
@@ -471,59 +473,6 @@ function Transformation() {
                         maxItemsPerPage={limit}
                         onActivePageChange={setPage}
                     />
-                )}
-                filters={(
-                    <>
-                        <DateInput
-                            name="createdAtStart"
-                            label="Created At "
-                            value={rawFilter.createdAtStart}
-                            onChange={setFilterField}
-                        />
-                        <DateInput
-                            name="createdAtEnd"
-                            label="End At"
-                            value={rawFilter.createdAtEnd}
-                            onChange={setFilterField}
-                        />
-                        <SelectInput
-                            label="Source"
-                            placeholder="All Sources"
-                            name="source"
-                            options={sourceOptions}
-                            keySelector={sourceKeySelector}
-                            labelSelector={sourceLabelSelector}
-                            value={rawFilter.source}
-                            onChange={setFilterField}
-                        />
-                        <SelectInput
-                            name="status"
-                            label="Status"
-                            placeholder="Status"
-                            options={statusOptions}
-                            keySelector={statusKeySelector}
-                            labelSelector={statusLabelSelector}
-                            value={rawFilter.status}
-                            onChange={setFilterField}
-                        />
-                        <TextInput
-                            name="traceId"
-                            label="Trace Id"
-                            placeholder="Trace Id"
-                            value={rawFilter.traceId}
-                            onChange={setFilterField}
-                        />
-                        <div className={styles.filterButton}>
-                            <Button
-                                name={undefined}
-                                variant="secondary"
-                                onClick={resetFilter}
-                                disabled={!filtered}
-                            >
-                                Clear
-                            </Button>
-                        </div>
-                    </>
                 )}
             >
                 <SortContext.Provider value={sortState}>

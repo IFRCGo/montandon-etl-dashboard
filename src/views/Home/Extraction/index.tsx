@@ -10,16 +10,12 @@ import {
     useQuery,
 } from '@apollo/client';
 import {
-    Button,
     Checkbox,
     type CheckboxProps,
     Container,
-    DateInput,
     KeyFigure,
     Pager,
-    SelectInput,
     Table,
-    TextInput,
 } from '@ifrc-go/ui';
 import { SortContext } from '@ifrc-go/ui/contexts';
 import {
@@ -49,7 +45,6 @@ import {
     type DataStatusTypeEnum,
     type ExtractionsQuery,
     type ExtractionsQueryVariables,
-    type FilterEnumsQuery,
     type RetriggerExtractionsMutation,
     type RetriggerExtractionsMutationVariables,
     type SourceTypeEnum,
@@ -57,7 +52,8 @@ import {
 import useAlert from '#hooks/useAlert';
 import useFilterState from '#hooks/useFilterState';
 import getEnumLabelFromValue from '#utils/common';
-import { FILTER_ENUMS } from '#utils/queries';
+// eslint-disable-next-line import/no-cycle
+import { Filter } from '#views/Home/Filters';
 
 import styles from './styles.module.css';
 
@@ -121,38 +117,62 @@ const RETRIGGER_EXTRACTIONS = gql`
     }
 `;
 
-type DataSourceType = NonNullable<NonNullable<NonNullable<FilterEnumsQuery['enums']>['ExtractionDataSource']>[number]>;
-type ExtractionDataStatusType = NonNullable<NonNullable<NonNullable<FilterEnumsQuery['enums']>['ExtractionDataStatus']>[number]>;
+const FILTER_ENUMS = gql`
+    query FilterEnums {
+        enums {
+            ExtractionDataSource {
+                key
+                label
+            }
+            ExtractionDataSourceValidationStatus {
+                key
+                label
+            }
+            DataStatusTypeEnum {
+                key
+                label
+            }
+            PyStacLoadDataItemType {
+                label
+                key
+            }
+            PyStacLoadDataStatus {
+                key
+                label
+            }
+        }
+    }
+`;
+
 type ExtractionDataItemType = NonNullable<NonNullable<NonNullable<ExtractionsQuery['extractions']>['results']>[number]> & {
     isSelected: boolean;
 };
 type ExtractionFilterType = NonNullable<ExtractionsQueryVariables['filters']>;
 
-const sourceKeySelector = (option: DataSourceType) => option.key;
-const sourceLabelSelector = (option: DataSourceType) => option.label;
-const statusKeySelector = (option: ExtractionDataStatusType) => option.key;
-const statusLabelSelector = (option: ExtractionDataStatusType) => option.label;
 const keySelector = (item: { id: string }) => item.id;
 const PAGE_SIZE = 20;
 const ASC = 'ASC';
 const DESC = 'DESC';
 const emptyArray: [] = [];
 
-function Extraction() {
+interface Props {
+    filter: Filter;
+    filtered: boolean;
+}
+
+function Extraction(props: Props) {
+    const {
+        filter,
+        filtered,
+    } = props;
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [isRetriggerBannerVisible, setIsRetriggerBannerVisible] = useState(false);
+    const [page, setPage] = useState<number>(1);
     const alert = useAlert();
     const {
         sortState,
         limit,
         offset,
-        page,
-        setPage,
-        rawFilter,
-        resetFilter,
-        filter,
-        setFilterField,
-        filtered,
     } = useFilterState<{
         createdAtStart?: string;
         createdAtEnd?: string;
@@ -222,7 +242,7 @@ function Extraction() {
 
     const {
         data: filterEnumsResponse,
-    } = useQuery<FilterEnumsQuery>(
+    } = useQuery(
         FILTER_ENUMS,
     );
 
@@ -294,7 +314,7 @@ function Extraction() {
     */
 
     const sourceOptions = filterEnumsResponse?.enums?.ExtractionDataSource;
-    const statusOptions = filterEnumsResponse?.enums?.ExtractionDataStatus;
+    const statusOptions = filterEnumsResponse?.enums?.DataStatusTypeEnum;
 
     const extractionDataBySource = extractionsResponse?.statusSourceCountsExtraction;
 
@@ -496,59 +516,6 @@ function Extraction() {
                         maxItemsPerPage={limit}
                         onActivePageChange={setPage}
                     />
-                )}
-                filters={(
-                    <>
-                        <DateInput
-                            name="createdAtStart"
-                            label="Created At "
-                            value={rawFilter.createdAtStart}
-                            onChange={setFilterField}
-                        />
-                        <DateInput
-                            name="createdAtEnd"
-                            label="End At"
-                            value={rawFilter.createdAtEnd}
-                            onChange={setFilterField}
-                        />
-                        <SelectInput
-                            label="Source"
-                            placeholder="All Sources"
-                            name="source"
-                            options={sourceOptions}
-                            keySelector={sourceKeySelector}
-                            labelSelector={sourceLabelSelector}
-                            value={rawFilter.source}
-                            onChange={setFilterField}
-                        />
-                        <SelectInput
-                            name="status"
-                            label="Status"
-                            placeholder="Status"
-                            options={statusOptions}
-                            keySelector={statusKeySelector}
-                            labelSelector={statusLabelSelector}
-                            value={rawFilter.status}
-                            onChange={setFilterField}
-                        />
-                        <TextInput
-                            name="traceId"
-                            label="Trace Id"
-                            placeholder="TraceId"
-                            value={rawFilter.traceId}
-                            onChange={setFilterField}
-                        />
-                        <div className={styles.filterButton}>
-                            <Button
-                                name={undefined}
-                                variant="secondary"
-                                onClick={resetFilter}
-                                disabled={!filtered}
-                            >
-                                Clear
-                            </Button>
-                        </div>
-                    </>
                 )}
             >
                 <SortContext.Provider value={sortState}>

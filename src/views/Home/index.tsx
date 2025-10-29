@@ -8,14 +8,23 @@ import {
 } from '@ifrc-go/ui';
 
 import Page from '#components/Page';
+import {
+    type DataStatusTypeEnum,
+    type PyStacLoadDataItemTypeEnum,
+    type SourceTypeEnum,
+} from '#generated/types/graphql';
+import useFilterState from '#hooks/useFilterState';
 
 import Extraction from './Extraction';
+import Filters from './Filters';
 import Load from './Load';
 import Transformation from './Transform';
 
 import styles from './styles.module.css';
 
-type TabType = 'extraction' | 'transformation' | 'load';
+const PAGE_SIZE = 20;
+
+export type TabType = 'extraction' | 'transformation' | 'load';
 /** @knipignore */
 // eslint-disable-next-line import/prefer-default-export
 export function Component() {
@@ -24,11 +33,35 @@ export function Component() {
         setActiveTab,
     ] = useState<TabType>('extraction');
 
+    const {
+        rawFilter,
+        resetFilter,
+        setFilterField,
+        filtered,
+    } = useFilterState<{
+        createdAtStart?: string;
+        createdAtEnd?: string;
+        traceId?: string;
+        source?: SourceTypeEnum;
+        status?: DataStatusTypeEnum;
+        itemType?: PyStacLoadDataItemTypeEnum;
+    }>({
+        filter: {},
+        pageSize: PAGE_SIZE,
+    });
+
     return (
         <Page
             className={styles.home}
             mainSectionClassName={styles.mainSection}
         >
+            <Filters
+                activeTab={activeTab}
+                setFilterField={setFilterField}
+                resetFilter={resetFilter}
+                rawFilter={rawFilter}
+                filtered={filtered}
+            />
             <Tabs
                 value={activeTab}
                 onChange={setActiveTab}
@@ -53,17 +86,26 @@ export function Component() {
                 <TabPanel
                     name="extraction"
                 >
-                    <Extraction />
+                    <Extraction
+                        filter={rawFilter}
+                        filtered={filtered}
+                    />
                 </TabPanel>
                 <TabPanel
                     name="transformation"
                 >
-                    <Transformation />
+                    <Transformation
+                        filter={rawFilter}
+                        filtered={filtered}
+                    />
                 </TabPanel>
                 <TabPanel
                     name="load"
                 >
-                    <Load />
+                    <Load
+                        filter={rawFilter}
+                        filtered={filtered}
+                    />
                 </TabPanel>
 
             </Tabs>

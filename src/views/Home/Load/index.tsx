@@ -1,20 +1,18 @@
-import { useMemo } from 'react';
+import {
+    useMemo,
+    useState,
+} from 'react';
 import {
     gql,
     useQuery,
 } from '@apollo/client';
 import {
-    Button,
-    ConfirmButton,
     Container,
-    DateInput,
     DateOutput,
     type DateOutputProps,
     KeyFigure,
     Pager,
-    SelectInput,
     Table,
-    TextInput,
 } from '@ifrc-go/ui';
 import { SortContext } from '@ifrc-go/ui/contexts';
 import {
@@ -39,6 +37,7 @@ import {
 
 import Page from '#components/Page';
 import {
+    type DataStatusTypeEnum,
     type FilterEnumsQuery,
     type IdBaseFilterLookup,
     type LoadQuery,
@@ -93,36 +92,38 @@ const LOADS = gql`
     }
 `;
 
-type DataSourceType = NonNullable<NonNullable<NonNullable<FilterEnumsQuery['enums']>['ExtractionDataSource']>[number]>;
-type PyStacLoadDataStatusType = NonNullable<NonNullable<NonNullable<FilterEnumsQuery['enums']>['PyStacLoadDataStatus']>[number]>;
-type PyStacLoadDataItemType = NonNullable<NonNullable<NonNullable<FilterEnumsQuery['enums']>['PyStacLoadDataItemType']>[number]>;
 type LoadDataItemType = NonNullable<NonNullable<NonNullable<LoadQuery['pystacs']>['results']>[number]>;
 type LoadFilterType = NonNullable<LoadQueryVariables['filters']>;
-
-const sourceKeySelector = (option: DataSourceType) => option.key;
-const sourceLabelSelector = (option: DataSourceType) => option.label;
-const statusKeySelector = (option: PyStacLoadDataStatusType) => option.key;
-const statusLabelSelector = (option: PyStacLoadDataStatusType) => option.label;
-const itemTypeKeySelector = (option: PyStacLoadDataItemType) => option.key;
-const itemTypeLabelSelector = (option: PyStacLoadDataItemType) => option.label;
 
 const keySelector = (item: { id: string }) => item.id;
 const PAGE_SIZE = 20;
 const ASC = 'ASC';
 const DESC = 'DESC';
 
-function Load() {
+export interface Filter {
+    createdAtStart?: string | undefined;
+    createdAtEnd?: string | undefined;
+    traceId?: string | undefined;
+    source?: SourceTypeEnum | undefined;
+    status?: DataStatusTypeEnum | undefined;
+    itemType?: PyStacLoadDataItemTypeEnum | undefined;
+}
+
+interface Props {
+    filter: Filter;
+    filtered: boolean;
+}
+
+function Load(props: Props) {
+    const {
+        filter,
+        filtered,
+    } = props;
+    const [page, setPage] = useState<number>(1);
     const {
         sortState,
         limit,
         offset,
-        page,
-        setPage,
-        rawFilter,
-        resetFilter,
-        filter,
-        setFilterField,
-        filtered,
     } = useFilterState<{
         createdAtStart?: string;
         createdAtEnd?: string;
@@ -286,6 +287,7 @@ function Load() {
             ),
         ]),
         [
+            sourceOptions,
             itemTypeOptions,
             statusOptions,
         ],
@@ -357,70 +359,6 @@ function Load() {
                         maxItemsPerPage={limit}
                         onActivePageChange={setPage}
                     />
-                )}
-                filters={(
-                    <>
-                        <DateInput
-                            name="createdAtStart"
-                            label="Created At "
-                            value={rawFilter.createdAtStart}
-                            onChange={setFilterField}
-                        />
-                        <DateInput
-                            name="createdAtEnd"
-                            label="End At"
-                            value={rawFilter.createdAtEnd}
-                            onChange={setFilterField}
-                        />
-                        <SelectInput
-                            label="Source"
-                            placeholder="All Sources"
-                            name="source"
-                            options={sourceOptions}
-                            keySelector={sourceKeySelector}
-                            labelSelector={sourceLabelSelector}
-                            value={rawFilter.source}
-                            onChange={setFilterField}
-                        />
-                        <SelectInput
-                            name="status"
-                            label="Status"
-                            placeholder="Status"
-                            options={statusOptions}
-                            keySelector={statusKeySelector}
-                            labelSelector={statusLabelSelector}
-                            value={rawFilter.status}
-                            onChange={setFilterField}
-                        />
-                        <SelectInput
-                            name="itemType"
-                            label="Item type"
-                            placeholder="item"
-                            options={itemTypeOptions}
-                            keySelector={itemTypeKeySelector}
-                            labelSelector={itemTypeLabelSelector}
-                            value={rawFilter.itemType}
-                            onChange={setFilterField}
-                        />
-
-                        <TextInput
-                            name="traceId"
-                            label="Trace Id"
-                            placeholder="TraceId"
-                            value={rawFilter.traceId}
-                            onChange={setFilterField}
-                        />
-                        <div className={styles.filterButton}>
-                            <Button
-                                name={undefined}
-                                variant="secondary"
-                                onClick={resetFilter}
-                                disabled={!filtered}
-                            >
-                                Clear
-                            </Button>
-                        </div>
-                    </>
                 )}
             >
                 <SortContext.Provider value={sortState}>

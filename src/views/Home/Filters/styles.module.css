@@ -1,0 +1,5 @@
+.filters {
+    display: flex;
+    align-items: flex-end;
+    gap: var(--go-ui-spacing-xl);
+}
