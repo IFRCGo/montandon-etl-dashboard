@@ -1,31 +1,18 @@
 import {
-    useCallback,
-    useEffect,
     useMemo,
-    useRef,
     useState,
 } from 'react';
 import {
     gql,
-    useMutation,
     useQuery,
 } from '@apollo/client';
-import { CloseLineIcon } from '@ifrc-go/icons';
 import {
-    Button,
-    Checkbox,
-    type CheckboxProps,
-    ConfirmButton,
     Container,
-    DateInput,
     DateOutput,
     type DateOutputProps,
     KeyFigure,
     Pager,
-    Popup,
-    SelectInput,
     Table,
-    TextInput,
 } from '@ifrc-go/ui';
 import { SortContext } from '@ifrc-go/ui/contexts';
 import {
@@ -37,8 +24,19 @@ import {
     isDefined,
     isNotDefined,
 } from '@togglecorp/fujs';
+import {
+    Bar,
+    BarChart,
+    CartesianGrid,
+    Legend,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis,
+} from 'recharts';
 
 import Page from '#components/Page';
+import StatusTag, { type Props as StatusTagProps } from '#components/StatusTag';
 import {
     type FilterEnumsQuery,
     type IdBaseFilterLookup,
@@ -46,11 +44,8 @@ import {
     type LoadQueryVariables,
     type PyStacLoadDataItemTypeEnum,
     type PyStacLoadDataStatusEnum,
-    type RetriggerPipelineMutation,
-    type RetriggerPipelineMutationVariables,
     type SourceTypeEnum,
 } from '#generated/types/graphql';
-import useAlert from '#hooks/useAlert';
 import useFilterState from '#hooks/useFilterState';
 import getEnumLabelFromValue from '#utils/common';
 import { FILTER_ENUMS } from '#utils/queries';
@@ -60,23 +55,34 @@ import styles from './styles.module.css';
 const LOADS = gql`
     query load (
         $pagination: OffsetPaginationInput,
-        $filters:PystacDataFilter,
+        $filters: PystacDataFilter,
+        $order: PystacOrder,
     ) {
-        pystacs(filters: $filters, pagination: $pagination) {
+        pystacs(filters: $filters, pagination: $pagination, order: $order) {
             totalCount
             pageInfo {
                 limit
                 offset
             }
             results {
+                collectionId
                 createdAt
                 id
                 itemType
                 modifiedAt
+                source
                 status
                 traceId
                 transformId
+                item
             }
+        }
+        statusSourceCountsPystac {
+            successCount
+            source
+            pendingCount
+            inProgressCount
+            failedCount
         }
         uniqueItemsCounts {
             uniqueEventCount
@@ -86,59 +92,50 @@ const LOADS = gql`
     }
 `;
 
-const RETRIGGER = gql`
-    mutation RetriggerPipeline($data: PipelineRetriggerInput!) {
-        retriggerPipeline(data: $data)
-    }
-`;
-
-type DataSourceType = NonNullable<NonNullable<NonNullable<FilterEnumsQuery['enums']>['ExtractionDataSource']>[number]>;
-type PyStacLoadDataStatusType = NonNullable<NonNullable<NonNullable<FilterEnumsQuery['enums']>['PyStacLoadDataStatus']>[number]>;
-type PyStacLoadDataItemType = NonNullable<NonNullable<NonNullable<FilterEnumsQuery['enums']>['PyStacLoadDataItemType']>[number]>;
-type LoadDataItemType = NonNullable<NonNullable<NonNullable<LoadQuery['pystacs']>['results']>[number]> & {
-    isSelected: boolean;
-};
+type LoadDataItemType = NonNullable<NonNullable<NonNullable<LoadQuery['pystacs']>['results']>[number]>;
 type LoadFilterType = NonNullable<LoadQueryVariables['filters']>;
-
-const sourceKeySelector = (option: DataSourceType) => option.key;
-const sourceLabelSelector = (option: DataSourceType) => option.label;
-const statusKeySelector = (option: PyStacLoadDataStatusType) => option.key;
-const statusLabelSelector = (option: PyStacLoadDataStatusType) => option.label;
-const itemTypeKeySelector = (option: PyStacLoadDataItemType) => option.key;
-const itemTypeLabelSelector = (option: PyStacLoadDataItemType) => option.label;
 
 const keySelector = (item: { id: string }) => item.id;
 const PAGE_SIZE = 20;
 const ASC = 'ASC';
 const DESC = 'DESC';
 
-function Load() {
-    const alert = useAlert();
-    const containerRef = useRef<HTMLDivElement | null>(null);
-    const [isRetriggerBannerVisible, setIsRetriggerBannerVisible] = useState(false);
-    const [selectedIds, setSelectedIds] = useState<string[]>([]);
+interface Filter {
+    createdAtStart?: string | undefined;
+    createdAtEnd?: string | undefined;
+    traceId?: string | undefined;
+    source?: SourceTypeEnum | undefined;
+    loadStatus?: PyStacLoadDataStatusEnum | undefined;
+    itemType?: PyStacLoadDataItemTypeEnum | undefined;
+}
+
+interface Props {
+    filter: Filter;
+    filtered: boolean;
+}
+
+function Load(props: Props) {
+    const {
+        filter,
+        filtered,
+    } = props;
+
+    const [page, setPage] = useState<number>(1);
     const {
         sortState,
         limit,
         offset,
-        page,
-        setPage,
-        rawFilter,
-        resetFilter,
-        filter,
-        setFilterField,
-        filtered,
     } = useFilterState<{
         createdAtStart?: string;
         createdAtEnd?: string;
         traceId?: string;
         source?: SourceTypeEnum;
-        status?: PyStacLoadDataStatusEnum;
-        itemType?: PyStacLoadDataItemTypeEnum ;
-      }>({
-          filter: {},
-          pageSize: PAGE_SIZE,
-      });
+        loadStatus?: PyStacLoadDataStatusEnum;
+        itemType?: PyStacLoadDataItemTypeEnum;
+    }>({
+        filter: {},
+        pageSize: PAGE_SIZE,
+    });
 
     const order = useMemo(() => {
         if (isNotDefined(sortState.sorting)) {
@@ -154,7 +151,9 @@ function Load() {
             createdAtStart,
             createdAtEnd,
             traceId,
-            ...otherFilters
+            loadStatus,
+            source,
+            itemType,
         } = filter;
 
         const createdAt: LoadFilterType['createdAt'] = {};
@@ -172,10 +171,12 @@ function Load() {
             },
             order,
             filters: {
-                ...otherFilters,
                 createdAt: isDefined(createdAt.gte)
-                || isDefined(createdAt.lte) ? createdAt : undefined,
+                    || isDefined(createdAt.lte) ? createdAt : undefined,
                 traceId: traceId ? { exact: traceId } as IdBaseFilterLookup : undefined,
+                status: loadStatus,
+                source,
+                itemType,
             },
         };
     }, [
@@ -200,72 +201,8 @@ function Load() {
     } = useQuery<FilterEnumsQuery>(
         FILTER_ENUMS,
     );
-    const [
-        retriggerTransform,
-    ] = useMutation<RetriggerPipelineMutation, RetriggerPipelineMutationVariables>(
-        RETRIGGER,
-        {
-            onCompleted: (response) => {
-                if (response?.retriggerPipeline) {
-                    alert.show(
-                        'Successfully Retriggered the Content',
-                        { variant: 'success' },
-                    );
-                } else {
-                    alert.show(
-                        'Failed to Retrigger the Content. Unexpected response from the server.',
-                        { variant: 'danger' },
-                    );
-                }
-                setSelectedIds([]);
-            },
-            // FIXME:  fix after error added  to serverside
-            onError: () => {
-                alert.show(
-                    'Failed to Retrigger the Content. Please try again later.',
-                    { variant: 'danger' },
-                );
-            },
-        },
-    );
 
-    const handleRetriggerTransform = useCallback(() => {
-        retriggerTransform({
-            variables: {
-                data: {
-                    traceId: selectedIds.map(Number),
-                },
-            },
-        });
-    }, [retriggerTransform, selectedIds]);
-
-    const handleCloseRetriggerBanner = () => {
-        setIsRetriggerBannerVisible(false);
-    };
-    useEffect(() => {
-        setIsRetriggerBannerVisible(selectedIds.length > 0);
-    }, [selectedIds]);
-
-    const dataWithSelection = useMemo(() => (
-        loadResponse?.pystacs.results ?? []).map((item) => ({
-        ...item,
-        isSelected: selectedIds.includes(item.id),
-    })), [loadResponse, selectedIds]);
-
-    const handleCheckboxChange = useCallback((id: string, checked: boolean) => {
-        setSelectedIds((prev) => {
-            if (checked) return [...prev, id];
-            return prev.filter((existingId) => existingId !== id);
-        });
-    }, []);
-
-    /*
-    const handleSelectAllChange = useCallback((checked: boolean) => {
-        if (!loadResponse?.pystacs.results) return;
-        const currentPageIds = loadResponse.pystacs.results.map((item) => item.id);
-        setSelectedIds(checked ? currentPageIds : []);
-    }, [loadResponse]);
-    */
+    const pyStacStatusData = loadResponse?.statusSourceCountsPystac;
 
     const sourceOptions = filterEnumsResponse?.enums?.ExtractionDataSource;
     const statusOptions = filterEnumsResponse?.enums?.PyStacLoadDataStatus;
@@ -273,29 +210,21 @@ function Load() {
 
     const columns = useMemo(
         () => ([
-            createElementColumn<LoadDataItemType, string, CheckboxProps<string>>(
-                'select',
-                '',
-                /*
-                Checkbox,
-                (_, item) => ({
-                    name: 'select-all',
-                    onChange: handleSelectAllChange,
-                    value: dataWithSelection.length > 0
-                        && dataWithSelection.every(() => item.isSelected),
-                }),
-                */
-                Checkbox,
-                (id, item) => ({
-                    name: `select-${id}`,
-                    value: item.isSelected,
-                    onChange: (checked) => handleCheckboxChange(item.id, checked),
-                }),
+            createStringColumn<LoadDataItemType, string>(
+                'collectionId',
+                'Collection Id',
+                (item) => item.collectionId,
+                {
+                    sortable: true,
+                },
             ),
             createStringColumn<LoadDataItemType, string>(
                 'id',
                 'Load Id',
                 (item) => item.id,
+                {
+                    sortable: true,
+                },
             ),
             createStringColumn<LoadDataItemType, string>(
                 'itemType',
@@ -305,6 +234,17 @@ function Load() {
                     itemTypeOptions ?? [],
                 ),
             ),
+            createStringColumn<LoadDataItemType, string>(
+                'source',
+                'Source',
+                (item) => getEnumLabelFromValue(
+                    item.source,
+                    sourceOptions ?? [],
+                ),
+                {
+                    sortable: true,
+                },
+            ),
             createElementColumn<LoadDataItemType, string, DateOutputProps>(
                 'createdAt',
                 'Created at',
@@ -312,7 +252,6 @@ function Load() {
                 (_, item) => ({
                     value: item.createdAt,
                     format: 'MM/dd/yyyy hh:mm:ss',
-                    sortable: true,
                 }),
             ),
             createElementColumn<LoadDataItemType, string, DateOutputProps>(
@@ -322,16 +261,17 @@ function Load() {
                 (_, item) => ({
                     value: item.createdAt,
                     format: 'MM/dd/yyyy hh:mm:ss',
-                    sortable: true,
                 }),
             ),
-            createStringColumn<LoadDataItemType, string>(
+            createElementColumn<LoadDataItemType, string, StatusTagProps<string>>(
                 'status',
                 'Status',
-                (item) => getEnumLabelFromValue(
-                    item.status,
-                    statusOptions ?? [],
-                ),
+                StatusTag,
+                (_, item) => ({
+                    name: item.id,
+                    label: getEnumLabelFromValue(item.status, statusOptions ?? []) ?? '-',
+                    status: item.status,
+                }),
                 {
                     sortable: true,
                 },
@@ -340,6 +280,9 @@ function Load() {
                 'traceId',
                 'Trace Id',
                 (item) => item.traceId,
+                {
+                    sortable: true,
+                },
             ),
             createStringColumn<LoadDataItemType, string>(
                 'transformId',
@@ -351,9 +294,7 @@ function Load() {
             ),
         ]),
         [
-            // dataWithSelection,
-            handleCheckboxChange,
-            // handleSelectAllChange,
+            sourceOptions,
             itemTypeOptions,
             statusOptions,
         ],
@@ -361,32 +302,63 @@ function Load() {
 
     const data = loadResponse?.pystacs.results;
 
-    const heading = resolveToString(
-        'All Transformation ({numAppeals})',
-        { numAppeals: loadResponse?.pystacs.totalCount },
-    );
+    const heading = useMemo(() => (
+        resolveToString(
+            'All Load ({totalCount})',
+            {
+                totalCount: isDefined(loadResponse?.pystacs?.totalCount)
+                    ? loadResponse?.pystacs?.totalCount
+                    : 0,
+            },
+        )
+    ), [loadResponse?.pystacs?.totalCount]);
 
     return (
         <Page
             className={styles.loads}
             mainSectionClassName={styles.mainSection}
         >
-            <div className={styles.keyFigures}>
-                <KeyFigure
-                    value={loadResponse?.uniqueItemsCounts[0]?.uniqueEventCount}
-                    label="Total Event Count"
-                    className={styles.keyFigureItem}
-                />
-                <KeyFigure
-                    value={loadResponse?.uniqueItemsCounts[0]?.uniqueHazardCount}
-                    label="Total Hazard Count"
-                    className={styles.keyFigureItem}
-                />
-                <KeyFigure
-                    value={loadResponse?.uniqueItemsCounts[0]?.uniqueImpactCount}
-                    label="Total Impact Count"
-                    className={styles.keyFigureItem}
-                />
+            <div className={styles.figures}>
+                <div className={styles.keyFigures}>
+                    <KeyFigure
+                        value={loadResponse?.uniqueItemsCounts[0]?.uniqueEventCount}
+                        label="Total Event Count"
+                        className={styles.keyFigureItem}
+                    />
+                    <KeyFigure
+                        value={loadResponse?.uniqueItemsCounts[0]?.uniqueHazardCount}
+                        label="Total Hazard Count"
+                        className={styles.keyFigureItem}
+                    />
+                    <KeyFigure
+                        value={loadResponse?.uniqueItemsCounts[0]?.uniqueImpactCount}
+                        label="Total Impact Count"
+                        className={styles.keyFigureItem}
+                    />
+                </div>
+                <ResponsiveContainer
+                    width="100%"
+                    height={300}
+                >
+                    <BarChart
+                        data={pyStacStatusData}
+                        margin={{
+                            top: 20,
+                            right: 30,
+                            left: 20,
+                            bottom: 5,
+                        }}
+                    >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="source" />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey="failedCount" stackId="a" fill="#F75C65" />
+                        <Bar dataKey="pendingCount" stackId="a" fill="#FF8000" />
+                        <Bar dataKey="successCount" stackId="a" fill="#7FB845" />
+                    </BarChart>
+                </ResponsiveContainer>
             </div>
             <Container
                 heading={heading}
@@ -400,118 +372,17 @@ function Load() {
                         onActivePageChange={setPage}
                     />
                 )}
-                filters={(
-                    <>
-                        <DateInput
-                            name="createdAtStart"
-                            label="Created At "
-                            value={rawFilter.createdAtStart}
-                            onChange={setFilterField}
-                        />
-                        <DateInput
-                            name="createdAtEnd"
-                            label="End At"
-                            value={rawFilter.createdAtEnd}
-                            onChange={setFilterField}
-                        />
-                        <SelectInput
-                            label="Source"
-                            placeholder="All Sources"
-                            name="source"
-                            options={sourceOptions}
-                            keySelector={sourceKeySelector}
-                            labelSelector={sourceLabelSelector}
-                            value={rawFilter.source}
-                            onChange={setFilterField}
-                        />
-                        <SelectInput
-                            name="status"
-                            label="Status"
-                            placeholder="Status"
-                            options={statusOptions}
-                            keySelector={statusKeySelector}
-                            labelSelector={statusLabelSelector}
-                            value={rawFilter.status}
-                            onChange={setFilterField}
-                        />
-                        <SelectInput
-                            name="itemType"
-                            label="Item type"
-                            placeholder="item"
-                            options={itemTypeOptions}
-                            keySelector={itemTypeKeySelector}
-                            labelSelector={itemTypeLabelSelector}
-                            value={rawFilter.itemType}
-                            onChange={setFilterField}
-                        />
-
-                        <TextInput
-                            name="traceId"
-                            label="Trace Id"
-                            placeholder="TraceId"
-                            value={rawFilter.traceId}
-                            onChange={setFilterField}
-                        />
-                        <div className={styles.filterButton}>
-                            <Button
-                                name={undefined}
-                                variant="secondary"
-                                onClick={resetFilter}
-                                disabled={!filtered}
-                            >
-                                Clear
-                            </Button>
-                        </div>
-                    </>
-                )}
             >
                 <SortContext.Provider value={sortState}>
                     <Table
                         columns={columns}
-                        data={dataWithSelection}
+                        data={loadResponse?.pystacs.results}
                         keySelector={keySelector}
                         pending={loading}
                         filtered={filtered}
                         errored={isDefined(loadError)}
                     />
                 </SortContext.Provider>
-                {isRetriggerBannerVisible && (
-                    <div
-                        ref={containerRef}
-                    >
-                        <Popup
-                            parentRef={containerRef}
-                            className={styles.popup}
-                        >
-                            <Container
-                                className={styles.retriggerAction}
-                                actions={(
-                                    <Button
-                                        name={undefined}
-                                        variant="tertiary"
-                                        onClick={handleCloseRetriggerBanner}
-                                    >
-                                        <CloseLineIcon />
-                                    </Button>
-                                )}
-                                footerContent={(
-                                    <>
-                                        <div>{`${selectedIds.length} items selected.`}</div>
-                                        <ConfirmButton
-                                            name="retrigger"
-                                            title="Retrigger"
-                                            onConfirm={handleRetriggerTransform}
-                                        >
-                                            Retrigger selected items
-                                        </ConfirmButton>
-                                    </>
-
-                                )}
-                            />
-
-                        </Popup>
-                    </div>
-                )}
             </Container>
         </Page>
     );

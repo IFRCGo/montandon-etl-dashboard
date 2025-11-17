@@ -2,7 +2,6 @@ import {
     useCallback,
     useEffect,
     useMemo,
-    useRef,
     useState,
 } from 'react';
 import {
@@ -10,20 +9,14 @@ import {
     useMutation,
     useQuery,
 } from '@apollo/client';
-import { CloseLineIcon } from '@ifrc-go/icons';
+import { ExternalLinkFillIcon } from '@ifrc-go/icons';
 import {
-    Button,
     Checkbox,
     type CheckboxProps,
-    ConfirmButton,
     Container,
-    DateInput,
     KeyFigure,
     Pager,
-    Popup,
-    SelectInput,
     Table,
-    TextInput,
 } from '@ifrc-go/ui';
 import { SortContext } from '@ifrc-go/ui/contexts';
 import {
@@ -36,32 +29,44 @@ import {
     isDefined,
     isNotDefined,
 } from '@togglecorp/fujs';
+import {
+    Bar,
+    BarChart,
+    CartesianGrid,
+    Legend,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis,
+} from 'recharts';
 
+import BulkRetriggerAction from '#components/BulkRetriggerAction';
 import Page from '#components/Page';
+import StatusTag, { type Props as StatusTagProps } from '#components/StatusTag';
 import {
     type DataStatusTypeEnum,
     type ExtractionsQuery,
     type ExtractionsQueryVariables,
-    type FilterEnumsQuery,
-    type RetriggerPipelineMutation,
-    type RetriggerPipelineMutationVariables,
+    type RetriggerExtractionsMutation,
+    type RetriggerExtractionsMutationVariables,
     type SourceTypeEnum,
 } from '#generated/types/graphql';
 import useAlert from '#hooks/useAlert';
 import useFilterState from '#hooks/useFilterState';
 import getEnumLabelFromValue from '#utils/common';
-import { FILTER_ENUMS } from '#utils/queries';
 
 import styles from './styles.module.css';
 
 const EXTRACTIONS = gql`
     query Extractions (
+        $order: ExtractionOrder,
         $pagination: OffsetPaginationInput,
         $filters: ExtractionDataFilter,
     ) {
         extractions(
             filters: $filters,
-            pagination: $pagination
+            pagination: $pagination,
+            order: $order,
         ) {
             totalCount
             pageInfo {
@@ -79,6 +84,7 @@ const EXTRACTIONS = gql`
                 status
                 traceId
                 url
+                filesize
             }
         }
         statusCountExtraction {
@@ -97,50 +103,93 @@ const EXTRACTIONS = gql`
     }
 `;
 
-const RETRIGGER = gql`
-    mutation RetriggerPipeline($data: PipelineRetriggerInput!) {
-        retriggerPipeline(data: $data)
+const RETRIGGER_EXTRACTIONS = gql`
+    mutation RetriggerExtractions (
+        $traceIds: [ID!]!
+    ) {
+        retriggerPipeline(data: {
+            traceIds: $traceIds
+        }) {
+            errors
+            ok
+            result {
+                status
+                taskId
+            }
+        }
     }
 `;
 
-type DataSourceType = NonNullable<NonNullable<NonNullable<FilterEnumsQuery['enums']>['ExtractionDataSource']>[number]>;
-type ExtractionDataStatusType = NonNullable<NonNullable<NonNullable<FilterEnumsQuery['enums']>['ExtractionDataStatus']>[number]>;
+const FILTER_ENUMS = gql`
+    query FilterEnums {
+        enums {
+            ExtractionDataSource {
+                key
+                label
+            }
+            ExtractionDataSourceValidationStatus {
+                key
+                label
+            }
+            DataStatusTypeEnum {
+                key
+                label
+            }
+            PyStacLoadDataItemType {
+                label
+                key
+            }
+            PyStacLoadDataStatus {
+                key
+                label
+            }
+        }
+    }
+`;
+
 type ExtractionDataItemType = NonNullable<NonNullable<NonNullable<ExtractionsQuery['extractions']>['results']>[number]> & {
     isSelected: boolean;
 };
 type ExtractionFilterType = NonNullable<ExtractionsQueryVariables['filters']>;
 
-const sourceKeySelector = (option: DataSourceType) => option.key;
-const sourceLabelSelector = (option: DataSourceType) => option.label;
-const statusKeySelector = (option: ExtractionDataStatusType) => option.key;
-const statusLabelSelector = (option: ExtractionDataStatusType) => option.label;
 const keySelector = (item: { id: string }) => item.id;
 const PAGE_SIZE = 20;
 const ASC = 'ASC';
 const DESC = 'DESC';
+const emptyArray: [] = [];
 
-function Extraction() {
+interface Filter {
+    createdAtStart?: string | undefined;
+    createdAtEnd?: string | undefined;
+    traceId?: string | undefined;
+    source?: SourceTypeEnum | undefined;
+    extractionTransformStatus?: DataStatusTypeEnum | undefined;
+}
+
+interface Props {
+    filter: Filter;
+    filtered: boolean;
+}
+
+function Extraction(props: Props) {
+    const {
+        filter,
+        filtered,
+    } = props;
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [isRetriggerBannerVisible, setIsRetriggerBannerVisible] = useState(false);
-    const containerRef = useRef<HTMLDivElement | null>(null);
+    const [page, setPage] = useState<number>(1);
     const alert = useAlert();
     const {
         sortState,
         limit,
         offset,
-        page,
-        setPage,
-        rawFilter,
-        resetFilter,
-        filter,
-        setFilterField,
-        filtered,
     } = useFilterState<{
         createdAtStart?: string;
         createdAtEnd?: string;
         traceId?: string;
         source?: SourceTypeEnum;
-        status?: DataStatusTypeEnum;
+        extractionTransformStatus?: DataStatusTypeEnum;
     }>({
         filter: {},
         pageSize: PAGE_SIZE,
@@ -160,6 +209,7 @@ function Extraction() {
             createdAtStart,
             createdAtEnd,
             traceId,
+            extractionTransformStatus,
             ...otherFilters
         } = filter;
 
@@ -182,6 +232,7 @@ function Extraction() {
                 createdAt: isDefined(createdAt.gte)
                     || isDefined(createdAt.lte) ? createdAt : undefined,
                 traceId: traceId ? { exact: traceId } : undefined,
+                status: extractionTransformStatus,
             },
         };
     }, [
@@ -204,14 +255,14 @@ function Extraction() {
 
     const {
         data: filterEnumsResponse,
-    } = useQuery<FilterEnumsQuery>(
+    } = useQuery(
         FILTER_ENUMS,
     );
 
     const [
-        retriggerTransform,
-    ] = useMutation<RetriggerPipelineMutation, RetriggerPipelineMutationVariables>(
-        RETRIGGER,
+        retriggerExtractions,
+    ] = useMutation<RetriggerExtractionsMutation, RetriggerExtractionsMutationVariables>(
+        RETRIGGER_EXTRACTIONS,
         {
             onCompleted: (response) => {
                 if (response?.retriggerPipeline) {
@@ -237,18 +288,17 @@ function Extraction() {
         },
     );
 
-    const handleRetriggerTransform = useCallback(() => {
-        retriggerTransform({
+    const handleRetriggerExtraction = useCallback(() => {
+        retriggerExtractions({
             variables: {
-                data: {
-                    traceId: selectedIds.map(Number),
-                },
+                traceIds: selectedIds,
             },
         });
-    }, [retriggerTransform, selectedIds]);
+    }, [retriggerExtractions, selectedIds]);
 
-    const handleCloseRetriggerBanner = () => {
+    const handleRetriggerActionClose = () => {
         setIsRetriggerBannerVisible(false);
+        setSelectedIds(emptyArray);
     };
 
     useEffect(() => {
@@ -277,7 +327,9 @@ function Extraction() {
     */
 
     const sourceOptions = filterEnumsResponse?.enums?.ExtractionDataSource;
-    const statusOptions = filterEnumsResponse?.enums?.ExtractionDataStatus;
+    const statusOptions = filterEnumsResponse?.enums?.DataStatusTypeEnum;
+
+    const extractionDataBySource = extractionsResponse?.statusSourceCountsExtraction;
 
     const columns = useMemo(
         () => ([
@@ -298,13 +350,17 @@ function Extraction() {
                     name: `select-${id}`,
                     value: item.isSelected,
                     onChange: (checked) => handleCheckboxChange(item.id, checked),
+                    disabled: item.status !== 'FAILED',
                 }),
             ),
             createStringColumn<ExtractionDataItemType, string>(
                 'id',
                 'Extraction Id',
                 (item) => item.id,
-                { columnClassName: styles.id },
+                {
+                    columnClassName: styles.id,
+                    sortable: true,
+                },
             ),
             createStringColumn<ExtractionDataItemType, string>(
                 'source',
@@ -317,38 +373,28 @@ function Extraction() {
                     sortable: true,
                 },
             ),
+            createElementColumn<ExtractionDataItemType, string, StatusTagProps<string>>(
+                'extractionTransformStatus',
+                'Status',
+                StatusTag,
+                (_, item) => ({
+                    name: item.id,
+                    label: getEnumLabelFromValue(item.status, statusOptions ?? []) ?? '-',
+                    status: item.status,
+                }),
+                {
+                    sortable: true,
+                },
+            ),
+            createNumberColumn<ExtractionDataItemType, string>(
+                'respCode',
+                'HTTP Response Code',
+                (item) => item.respCode,
+            ),
             createStringColumn<ExtractionDataItemType, string>(
                 'respDataType',
                 'Response data Type',
                 (item) => item.respDataType,
-                { sortable: true },
-            ),
-            createElementColumn<ExtractionDataItemType, string, { url: string }>(
-                'url',
-                'Source url',
-                ({ url }) => (
-                    <a
-                        className={styles.actions}
-                        href={url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                    >
-                        {url}
-                    </a>
-                ),
-                (_, item) => ({ url: item.url }),
-                { columnClassName: styles.url },
-            ),
-            createStringColumn<ExtractionDataItemType, string>(
-                'sourceValidationStatus',
-                'Source validation Status',
-                (item) => getEnumLabelFromValue(
-                    item.sourceValidationStatus,
-                    filterEnumsResponse?.enums?.ExtractionDataSourceValidationStatus ?? [],
-                ),
-                {
-                    sortable: true,
-                },
             ),
             /*
                 TODO: IF hazard types are saved in the server, show this.
@@ -361,15 +407,12 @@ function Extraction() {
                     },
                 ),
             */
-            createStringColumn<ExtractionDataItemType, string>(
-                'status',
-                'Status',
-                (item) => getEnumLabelFromValue(
-                    item.status,
-                    statusOptions ?? [],
-                ),
+            createNumberColumn<ExtractionDataItemType, string>(
+                'fileSize',
+                'File Size',
+                (item) => item.filesize,
                 {
-                    sortable: true,
+                    suffix: ' KB',
                 },
             ),
             createStringColumn<ExtractionDataItemType, string>(
@@ -386,15 +429,25 @@ function Extraction() {
                     columnClassName: styles.revisionId,
                 },
             ),
-            createNumberColumn<ExtractionDataItemType, string>(
-                'respCode',
-                'Response Code',
-                (item) => item.respCode,
+            createElementColumn<ExtractionDataItemType, string, { url: string }>(
+                'url',
+                'Source url',
+                ({ url }) => (
+                    <a
+                        className={styles.actions}
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        <ExternalLinkFillIcon />
+                    </a>
+                ),
+                (_, item) => ({ url: item.url }),
+                { columnClassName: styles.url },
             ),
         ]),
         [
             handleCheckboxChange,
-            filterEnumsResponse?.enums?.ExtractionDataSourceValidationStatus,
             sourceOptions,
             statusOptions,
         ],
@@ -402,35 +455,68 @@ function Extraction() {
 
     const data = extractionsResponse?.extractions?.results;
 
-    const heading = resolveToString(
-        'All Extraction ({numAppeals})',
-        { numAppeals: extractionsResponse?.extractions?.totalCount },
-    );
+    const heading = useMemo(() => (
+        resolveToString(
+            'All Extraction ({totalCount})',
+            {
+                totalCount: isDefined(extractionsResponse?.extractions?.totalCount)
+                    ? extractionsResponse?.extractions?.totalCount
+                    : 0,
+            },
+        )
+    ), [extractionsResponse?.extractions?.totalCount]);
 
     return (
         <Page
             className={styles.extraction}
             mainSectionClassName={styles.mainSection}
         >
-            <div className={styles.keyFigures}>
-                <KeyFigure
-                    // FIXME: Fix this after this is no longer array from sever
-                    value={extractionsResponse?.statusCountExtraction[0]?.successCount}
-                    label="Total Extractions Succeeded"
-                    className={styles.keyFigureItem}
-                />
-                <KeyFigure
-                    // FIXME: Fix this after this is no longer array from sever
-                    value={extractionsResponse?.statusCountExtraction[0]?.failedCount}
-                    label="Total Extractions Failed"
-                    className={styles.keyFigureItem}
-                />
-                <KeyFigure
-                    // FIXME: Fix this after this is no longer array from sever
-                    value={extractionsResponse?.statusCountExtraction[0]?.pendingCount}
-                    label="Total Extractions Pending"
-                    className={styles.keyFigureItem}
-                />
+            <div className={styles.figure}>
+                <div className={styles.keyFigures}>
+                    <KeyFigure
+                        // FIXME: Fix this after this is no longer array from sever
+                        value={extractionsResponse?.statusCountExtraction[0]?.successCount}
+                        label="Total Extractions Succeeded"
+                        className={styles.keyFigureItem}
+                    />
+                    <KeyFigure
+                        // FIXME: Fix this after this is no longer array from sever
+                        value={extractionsResponse?.statusCountExtraction[0]?.failedCount}
+                        label="Total Extractions Failed"
+                        className={styles.keyFigureItem}
+                    />
+                    <KeyFigure
+                        // FIXME: Fix this after this is no longer array from sever
+                        value={extractionsResponse?.statusCountExtraction[0]?.pendingCount}
+                        label="Total Extractions Pending"
+                        className={styles.keyFigureItem}
+                    />
+                </div>
+                <ResponsiveContainer
+                    width="100%"
+                    height={300}
+                >
+                    <BarChart
+                        data={extractionDataBySource}
+                        margin={{
+                            top: 20,
+                            right: 30,
+                            left: 20,
+                            bottom: 5,
+                        }}
+                    >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="source" />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey="failedCount" stackId="a" fill="#F75C65" />
+                        <Bar dataKey="inProgressCount" stackId="a" fill="#d9b100" />
+                        <Bar dataKey="pendingCount" stackId="a" fill="#FF8000" />
+                        <Bar dataKey="successCount" stackId="a" fill="#7FB845" />
+                        <Bar dataKey="onRetryCount" stackId="a" fill="#8648B3" />
+                    </BarChart>
+                </ResponsiveContainer>
             </div>
             <Container
                 heading={heading}
@@ -444,59 +530,6 @@ function Extraction() {
                         onActivePageChange={setPage}
                     />
                 )}
-                filters={(
-                    <>
-                        <DateInput
-                            name="createdAtStart"
-                            label="Created At "
-                            value={rawFilter.createdAtStart}
-                            onChange={setFilterField}
-                        />
-                        <DateInput
-                            name="createdAtEnd"
-                            label="End At"
-                            value={rawFilter.createdAtEnd}
-                            onChange={setFilterField}
-                        />
-                        <SelectInput
-                            label="Source"
-                            placeholder="All Sources"
-                            name="source"
-                            options={sourceOptions}
-                            keySelector={sourceKeySelector}
-                            labelSelector={sourceLabelSelector}
-                            value={rawFilter.source}
-                            onChange={setFilterField}
-                        />
-                        <SelectInput
-                            name="status"
-                            label="Status"
-                            placeholder="Status"
-                            options={statusOptions}
-                            keySelector={statusKeySelector}
-                            labelSelector={statusLabelSelector}
-                            value={rawFilter.status}
-                            onChange={setFilterField}
-                        />
-                        <TextInput
-                            name="traceId"
-                            label="Trace Id"
-                            placeholder="TraceId"
-                            value={rawFilter.traceId}
-                            onChange={setFilterField}
-                        />
-                        <div className={styles.filterButton}>
-                            <Button
-                                name={undefined}
-                                variant="secondary"
-                                onClick={resetFilter}
-                                disabled={!filtered}
-                            >
-                                Clear
-                            </Button>
-                        </div>
-                    </>
-                )}
             >
                 <SortContext.Provider value={sortState}>
                     <Table
@@ -509,41 +542,11 @@ function Extraction() {
                     />
                 </SortContext.Provider>
                 {isRetriggerBannerVisible && (
-                    <div
-                        ref={containerRef}
-                    >
-                        <Popup
-                            parentRef={containerRef}
-                            className={styles.popup}
-                        >
-                            <Container
-                                className={styles.retriggerAction}
-                                actions={(
-                                    <Button
-                                        name={undefined}
-                                        variant="tertiary"
-                                        onClick={handleCloseRetriggerBanner}
-                                    >
-                                        <CloseLineIcon />
-                                    </Button>
-                                )}
-                                footerContent={(
-                                    <>
-                                        <div>{`${selectedIds.length} items selected.`}</div>
-                                        <ConfirmButton
-                                            name="retrigger"
-                                            title="Retrigger"
-                                            onConfirm={handleRetriggerTransform}
-                                        >
-                                            Retrigger selected items
-                                        </ConfirmButton>
-                                    </>
-
-                                )}
-                            />
-
-                        </Popup>
-                    </div>
+                    <BulkRetriggerAction
+                        onSelectionClear={handleRetriggerActionClose}
+                        onRetriggerConfirm={handleRetriggerExtraction}
+                        selectedItemsCount={selectedIds.length}
+                    />
                 )}
             </Container>
         </Page>

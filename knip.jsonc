@@ -7,7 +7,12 @@
         "src/index.tsx!"
     ],
     "ignoreDependencies": [
-        "@graphql-typed-document-node/core"
+        "@graphql-typed-document-node/core",
+        "@vitejs/plugin-react-swc",
+        "vite-plugin-checker",
+        "vite-plugin-compression2",
+        "vite-plugin-webfont-dl",
+        "vite-tsconfig-paths"
     ],
     "project": [
         "src/**/*.d.ts",

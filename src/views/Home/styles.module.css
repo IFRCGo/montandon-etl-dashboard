@@ -1,11 +1,11 @@
+.home {
+    gap: var(--go-ui-spacing-lg);
 
-.transformation {
-    
     .main-section {
         display: flex;
         flex-direction: column;
-        padding: var(--go-ui-spacing-sm) !important;
-        gap: var(--go-ui-spacing-xl);
+        gap: var(--go-ui-spacing-lg);
+
     }
 
     .key-figures {

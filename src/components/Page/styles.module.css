@@ -14,9 +14,8 @@
         &.with-background-color {
             background-color: var(--go-ui-color-background);
         }
-
-        .main-section {
-            padding: var(--go-ui-spacing-2xl) var(--go-ui-spacing-lg);
-        }
+    }
+    .main-section {
+        max-width: var(--go-ui-page-width-max);
     }
 }

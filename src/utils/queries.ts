@@ -12,7 +12,7 @@ export const FILTER_ENUMS = gql`
                 key
                 label
             }
-            ExtractionDataStatus {
+            DataStatusTypeEnum {
                 key
                 label
             }
