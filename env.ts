@@ -17,11 +17,8 @@ export default defineConfig({
     overrideDefine,
     validator: 'builtin',
     schema: {
-        APP_GRAPHQL_ENDPOINT: Schema.string({ format: 'url', protocol: true, tld: false }),
-        // NOTE: APP_TITLE is consumed at build time by Vite's `%APP_TITLE%` HTML
-        // replacement (index.html <title>/noscript). It is a default (overridable)
-        // var — the shared default is baked as an ENV in the Dockerfile final stage,
-        // yet stays runtime-overridable via web-app-serve.
+        // NOTE: These are the dynamic env variables
+        APP_GRAPHQL_ENDPOINT: Schema.string(),
         APP_TITLE: Schema.string(),
     },
 });
