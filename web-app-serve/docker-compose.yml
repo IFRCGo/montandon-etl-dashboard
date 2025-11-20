@@ -8,11 +8,8 @@ services:
     environment:
       APP_TITLE: ${APP_TITLE:- Montandon ETL Dashboard}
       APP_GRAPHQL_ENDPOINT: ${APP_GRAPHQL_ENDPOINT:-http://localhost:8000/graphql/}
+      # web-app-serve config
       APPLY_CONFIG__ENABLE_DEBUG: true
+    env_file: .env
     ports:
-      - '3092:80'
-    develop:
-      watch:
-        - action: sync+restart
-          path: ../web-app-serve/apply-config.sh
-          target: /code/apply-config.sh
+      - '8050:80'
