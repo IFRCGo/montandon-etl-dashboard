@@ -1,4 +1,5 @@
-name: monty-web-app-serve
+# NOTE: The name is mandatory and should be unique
+name: ${COMPOSE_PROJECT_NAME:-ifrcgo-montandon-etl-dashboard}
 
 services:
   web-app-serve:
@@ -6,13 +7,17 @@ services:
       context: ../
       target: web-app-serve
     environment:
-      APP_TITLE: ${APP_TITLE:- Montandon ETL Dashboard}
-      APP_GRAPHQL_ENDPOINT: ${APP_GRAPHQL_ENDPOINT:-http://localhost:8000/graphql/}
-      APPLY_CONFIG__ENABLE_DEBUG: true
+      # web-app-serve config: dumps unreplaced placeholders + diffs at /__debug/
+      APPLY_CONFIG__ENABLE_DEBUG: "true"
+      # NOTE: APP_TITLE is intentionally absent — it is a default (overridable)
+      # var baked as an ENV ("Montandon ETL Dashboard") in the Dockerfile final
+      # stage. Passing it here (even as ${APP_TITLE:-...}) would mask the
+      # baked-default test. Override it at runtime by setting APP_TITLE in the
+      # environment / local .env.
+      # Dynamic configs (local defaults; override via an optional local .env)
+      APP_GRAPHQL_ENDPOINT: "${APP_GRAPHQL_ENDPOINT:-http://localhost:8000/graphql/}"
+    env_file:
+      - path: .env
+        required: false
     ports:
-      - '3092:80'
-    develop:
-      watch:
-        - action: sync+restart
-          path: ../web-app-serve/apply-config.sh
-          target: /code/apply-config.sh
+      - '8050:80'
