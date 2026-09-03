@@ -1,4 +1,4 @@
-import { ValidateEnv as validateEnv } from '@julr/vite-plugin-validate-env';
+import { ValidateEnv as validateEnv } from '@togglecorp/vite-plugin-validate-env';
 import reactSwc from '@vitejs/plugin-react-swc';
 import { execSync } from 'child_process';
 import { defineConfig } from 'vite';

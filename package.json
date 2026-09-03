@@ -37,7 +37,7 @@
         "@graphql-codegen/cli": "^5.0.3",
         "@graphql-codegen/client-preset": "^4.3.3",
         "@graphql-typed-document-node/core": "^3.2.0",
-        "@julr/vite-plugin-validate-env": "git+https://github.com/toggle-corp/vite-plugin-validate-env#v2.2.0-tc.1",
+        "@togglecorp/vite-plugin-validate-env": "^2.2.1",
         "@types/node": "^24.2.0",
         "@types/react": "^18.0.28",
         "@types/react-dom": "^18.0.22",

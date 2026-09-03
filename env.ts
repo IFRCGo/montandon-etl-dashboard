@@ -2,7 +2,7 @@ import {
     defineConfig,
     overrideDefineForWebAppServe,
     Schema,
-} from '@julr/vite-plugin-validate-env';
+} from '@togglecorp/vite-plugin-validate-env';
 
 const webAppServeEnabled = process.env.WEB_APP_SERVE_ENABLED?.toLowerCase() === 'true';
 if (webAppServeEnabled) {

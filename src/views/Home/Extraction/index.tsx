@@ -54,6 +54,7 @@ import {
 import useAlert from '#hooks/useAlert';
 import useFilterState from '#hooks/useFilterState';
 import getEnumLabelFromValue from '#utils/common';
+import { FILTER_ENUMS } from '#utils/queries';
 
 import styles from './styles.module.css';
 
@@ -115,33 +116,6 @@ const RETRIGGER_EXTRACTIONS = gql`
             result {
                 status
                 taskId
-            }
-        }
-    }
-`;
-
-const FILTER_ENUMS = gql`
-    query FilterEnums {
-        enums {
-            ExtractionDataSource {
-                key
-                label
-            }
-            ExtractionDataSourceValidationStatus {
-                key
-                label
-            }
-            DataStatusTypeEnum {
-                key
-                label
-            }
-            PyStacLoadDataItemType {
-                label
-                key
-            }
-            PyStacLoadDataStatus {
-                key
-                label
             }
         }
     }
