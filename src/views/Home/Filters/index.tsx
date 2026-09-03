@@ -1,8 +1,5 @@
 import { useMemo } from 'react';
-import {
-    gql,
-    useQuery,
-} from '@apollo/client';
+import { useQuery } from '@apollo/client';
 import {
     Button,
     DateInput,
@@ -16,35 +13,9 @@ import {
     type SourceTypeEnum,
 } from '#generated/types/graphql';
 import { type TabType } from '#utils/common';
+import { FILTER_ENUMS } from '#utils/queries';
 
 import styles from './styles.module.css';
-
-const FILTER_ENUMS = gql`
-    query FilterEnums {
-        enums {
-            ExtractionDataSource {
-                key
-                label
-            }
-            ExtractionDataSourceValidationStatus {
-                key
-                label
-            }
-            DataStatusTypeEnum {
-                key
-                label
-            }
-            PyStacLoadDataItemType {
-                label
-                key
-            }
-            PyStacLoadDataStatus {
-                key
-                label
-            }
-        }
-    }
-`;
 
 // FIXME: Fix this type
 const sourceKeySelector = (option: {key: SourceTypeEnum; label: string}) => option.key;
