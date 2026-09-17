@@ -10,6 +10,7 @@ RUN apt-get update -y \
     && git config --global --add safe.directory /code
 
 WORKDIR /code
+RUN git config --global --add safe.directory /code
 
 # -------------------------- web-app-serve- Builder --------------------------------
 FROM dev AS web-app-serve-build

@@ -307,7 +307,7 @@ function Load(props: Props) {
             'All Load ({totalCount})',
             {
                 totalCount: isDefined(loadResponse?.pystacs?.totalCount)
-                    ? loadResponse?.pystacs?.totalCount
+                    ? loadResponse.pystacs.totalCount.toLocaleString()
                     : 0,
             },
         )
@@ -351,8 +351,8 @@ function Load(props: Props) {
                     >
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="source" />
-                        <YAxis />
-                        <Tooltip />
+                        <YAxis tickFormatter={(value: number) => value.toLocaleString()} />
+                        <Tooltip formatter={(value) => (typeof value === 'number' ? value.toLocaleString() : value)} />
                         <Legend />
                         <Bar dataKey="failedCount" stackId="a" fill="#D03B3B" />
                         <Bar dataKey="pendingCount" stackId="a" fill="#FAB219" />
