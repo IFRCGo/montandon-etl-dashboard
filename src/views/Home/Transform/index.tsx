@@ -469,11 +469,11 @@ function Transformation(props: Props) {
                         <YAxis />
                         <Tooltip />
                         <Legend />
-                        <Bar dataKey="failedCount" stackId="a" fill="#F75C65" />
-                        <Bar dataKey="inProgressCount" stackId="a" fill="#d9b100" />
-                        <Bar dataKey="pendingCount" stackId="a" fill="#FF8000" />
-                        <Bar dataKey="successCount" stackId="a" fill="#7FB845" />
-                        <Bar dataKey="onRetryCount" stackId="a" fill="#8648B3" />
+                        <Bar dataKey="failedCount" stackId="a" fill="#D03B3B" />
+                        <Bar dataKey="inProgressCount" stackId="a" fill="#2A78D6" />
+                        <Bar dataKey="pendingCount" stackId="a" fill="#FAB219" />
+                        <Bar dataKey="successCount" stackId="a" fill="#0CA30C" />
+                        <Bar dataKey="onRetryCount" stackId="a" fill="#4A3AA7" />
                     </BarChart>
                 </ResponsiveContainer>
             </div>

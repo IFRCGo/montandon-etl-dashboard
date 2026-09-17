@@ -1,22 +1,26 @@
 .status {
     &.success {
-        --color-border: var(--go-ui-color-green);
-        --color-background: var(--go-ui-color-green);
+        --color-green: #0CA30C;
+        --color-border: var(--color-green);
+        --color-background: var(--color-green);
     }
     &.failed {
-        --color-border: var(--go-ui-color-red);
-        --color-background: var(--go-ui-color-red);
+        --color-red: #D03B3B;
+        --color-border: var(--color-red);
+        --color-background: var(--color-red);
     }
     &.pending {
-        --color-border: var(--go-ui-color-orange);
-        --color-background: var(--go-ui-color-orange);
+        --color-gold: #FAB219;
+        --color-border: var(--color-gold);
+        --color-background: var(--color-gold);
     }
     &.in-progress {
-        --color-border: var(--go-ui-color-yellow);
-        --color-background: var(--go-ui-color-yellow);
+        --color-blue: #2A78D6;
+        --color-border: var(--color-blue);
+        --color-background: var(--color-blue);
     }
     &.on-retry {
-        --color-purple: #8648B3;
+        --color-purple: #4A3AA7;
         --color-border: var(--color-purple);
         --color-background: var(--color-purple);
     }
