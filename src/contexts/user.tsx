@@ -1,16 +1,8 @@
 import { createContext } from 'react';
 
-// import { MeQuery } from '#generated/types/graphql';
+import { type MeQuery } from '#generated/types/graphql';
 
-interface MeQuery {
-    private: {
-        me: {
-            firstName: string;
-            lastName: string;
-        };
-    };
-}
-export type UserAuth = NonNullable<NonNullable<MeQuery>['private']>['me'];
+export type UserAuth = NonNullable<MeQuery['me']>;
 
 export interface UserContextProps {
     userAuth: UserAuth | undefined,

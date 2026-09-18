@@ -1,7 +1,11 @@
 {
     "$schema": "https://unpkg.com/knip@5/schema.json",
-    "ignore": ["generated/**/*.ts"],
+    "ignoreExportsUsedInFile": {
+        "interface": true,
+        "type": true
+    },
     "entry": [
+        "generated/**/*.ts",
         "src/**/*.test.ts",
         "src/**/*.test.tsx",
         "src/index.tsx!"

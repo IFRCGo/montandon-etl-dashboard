@@ -43,6 +43,8 @@ import {
 import BulkRetriggerAction from '#components/BulkRetriggerAction';
 import Page from '#components/Page';
 import StatusTag, { type Props as StatusTagProps } from '#components/StatusTag';
+import TraceIdLink, { type Props as TraceIdLinkProps } from '#components/TraceIdLink';
+import TrendChart, { type TrendMode } from '#components/TrendChart';
 import {
     type DataStatusTypeEnum,
     type PyStacLoadDataItemTypeEnum,
@@ -56,6 +58,10 @@ import useAlert from '#hooks/useAlert';
 import useFilterState from '#hooks/useFilterState';
 import getEnumLabelFromValue from '#utils/common';
 import { FILTER_ENUMS } from '#utils/queries';
+import {
+    pivotSnapshotTrend,
+    pivotTrendByDate,
+} from '#utils/trend';
 
 import styles from './styles.module.css';
 
@@ -102,12 +108,15 @@ const TRANSFORMS = gql`
             source
             successCount
         }
-        statusSourceCountsTransform {
-            failedCount
-            inProgressCount
-            pendingCount
-            source
-            successCount
+        transformTrend(days: 30) {
+            date
+            status
+            count
+        }
+        statusSnapshotTrend(resourceType: TRANSFORM, days: 7) {
+            createdAt
+            status
+            count
         }
     }
 `;
@@ -151,12 +160,14 @@ interface Filter {
 interface Props {
     filter: Filter;
     filtered: boolean;
+    onTraceIdClick: (traceId: string) => void;
 }
 
 function Transformation(props: Props) {
     const {
         filter,
         filtered,
+        onTraceIdClick,
     } = props;
     const alert = useAlert();
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -312,6 +323,16 @@ function Transformation(props: Props) {
 
     const extractionDataByTransformation = transformResponse?.statusSourceCountsTransform;
 
+    const [trendMode, setTrendMode] = useState<TrendMode>('daily');
+    const dailyTrendData = useMemo(
+        () => pivotTrendByDate(transformResponse?.transformTrend),
+        [transformResponse?.transformTrend],
+    );
+    const snapshotTrendData = useMemo(
+        () => pivotSnapshotTrend(transformResponse?.statusSnapshotTrend),
+        [transformResponse?.statusSnapshotTrend],
+    );
+
     const columns = useMemo(
         () => ([
             createElementColumn<TransformationDataItem, string, CheckboxProps<string>>(
@@ -400,10 +421,14 @@ function Transformation(props: Props) {
                     sortable: true,
                 },
             ),
-            createStringColumn<TransformationDataItem, string>(
+            createElementColumn<TransformationDataItem, string, TraceIdLinkProps>(
                 'traceId',
                 'Trace Id',
-                (item) => item.traceId,
+                TraceIdLink,
+                (_, item) => ({
+                    traceId: item.traceId,
+                    onClick: onTraceIdClick,
+                }),
                 {
                     sortable: true,
                 },
@@ -413,13 +438,14 @@ function Transformation(props: Props) {
             handleCheckboxChange,
             statusOptions,
             sourceOptions,
+            onTraceIdClick,
         ],
     );
 
     const data = transformResponse?.transforms.results;
     const heading = useMemo(() => (
         resolveToString(
-            'All Transformation ({totalCount})',
+            'All Transformation items ({totalCount})',
             {
                 totalCount: isDefined(transformResponse?.transforms?.totalCount)
                     ? transformResponse.transforms.totalCount.toLocaleString()
@@ -436,17 +462,17 @@ function Transformation(props: Props) {
             <div className={styles.figures}>
                 <div className={styles.keyFigures}>
                     <KeyFigure
-                        value={transformResponse?.statusCountTransform[0]?.successCount}
+                        value={transformResponse?.statusCountTransform?.successCount}
                         label="Total Transforms Succeeded"
                         className={styles.keyFigureItem}
                     />
                     <KeyFigure
-                        value={transformResponse?.statusCountTransform[0]?.failedCount}
+                        value={transformResponse?.statusCountTransform?.failedCount}
                         label="Total Transforms Failed"
                         className={styles.keyFigureItem}
                     />
                     <KeyFigure
-                        value={transformResponse?.statusCountTransform[0]?.pendingCount}
+                        value={transformResponse?.statusCountTransform?.pendingCount}
                         label="Total Transforms Pending"
                         className={styles.keyFigureItem}
                     />
@@ -469,14 +495,20 @@ function Transformation(props: Props) {
                         <YAxis tickFormatter={(value: number) => value.toLocaleString()} />
                         <Tooltip formatter={(value) => (typeof value === 'number' ? value.toLocaleString() : value)} />
                         <Legend />
-                        <Bar dataKey="failedCount" stackId="a" fill="#D03B3B" />
-                        <Bar dataKey="inProgressCount" stackId="a" fill="#2A78D6" />
-                        <Bar dataKey="pendingCount" stackId="a" fill="#FAB219" />
-                        <Bar dataKey="successCount" stackId="a" fill="#0CA30C" />
-                        <Bar dataKey="onRetryCount" stackId="a" fill="#4A3AA7" />
+                        <Bar dataKey="failedCount" name="Failed" stackId="a" fill="#D03B3B" />
+                        <Bar dataKey="inProgressCount" name="In progress" stackId="a" fill="#2A78D6" />
+                        <Bar dataKey="pendingCount" name="Pending" stackId="a" fill="#FAB219" />
+                        <Bar dataKey="successCount" name="Success" stackId="a" fill="#0CA30C" />
                     </BarChart>
                 </ResponsiveContainer>
             </div>
+            <TrendChart
+                heading="Transformation trend"
+                mode={trendMode}
+                onModeChange={setTrendMode}
+                data={trendMode === 'daily' ? dailyTrendData : snapshotTrendData}
+                statusKeys={['FAILED', 'IN_PROGRESS', 'PENDING', 'SUCCESS']}
+            />
             <Container
                 heading={heading}
                 withHeaderBorder
