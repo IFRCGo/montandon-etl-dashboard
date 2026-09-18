@@ -43,6 +43,8 @@ import {
 import BulkRetriggerAction from '#components/BulkRetriggerAction';
 import Page from '#components/Page';
 import StatusTag, { type Props as StatusTagProps } from '#components/StatusTag';
+import TraceIdLink, { type Props as TraceIdLinkProps } from '#components/TraceIdLink';
+import TrendChart, { type TrendMode } from '#components/TrendChart';
 import {
     type DataStatusTypeEnum,
     type ExtractionsQuery,
@@ -54,6 +56,11 @@ import {
 import useAlert from '#hooks/useAlert';
 import useFilterState from '#hooks/useFilterState';
 import getEnumLabelFromValue from '#utils/common';
+import { FILTER_ENUMS } from '#utils/queries';
+import {
+    pivotSnapshotTrend,
+    pivotTrendByDate,
+} from '#utils/trend';
 
 import styles from './styles.module.css';
 
@@ -99,6 +106,18 @@ const EXTRACTIONS = gql`
             pendingCount
             source
             successCount
+            onRetryCount
+        }
+        retriedExtractionsCount
+        extractionTrend(days: 30) {
+            date
+            status
+            count
+        }
+        statusSnapshotTrend(resourceType: EXTRACTION, days: 7) {
+            createdAt
+            status
+            count
         }
     }
 `;
@@ -115,33 +134,6 @@ const RETRIGGER_EXTRACTIONS = gql`
             result {
                 status
                 taskId
-            }
-        }
-    }
-`;
-
-const FILTER_ENUMS = gql`
-    query FilterEnums {
-        enums {
-            ExtractionDataSource {
-                key
-                label
-            }
-            ExtractionDataSourceValidationStatus {
-                key
-                label
-            }
-            DataStatusTypeEnum {
-                key
-                label
-            }
-            PyStacLoadDataItemType {
-                label
-                key
-            }
-            PyStacLoadDataStatus {
-                key
-                label
             }
         }
     }
@@ -169,12 +161,14 @@ interface Filter {
 interface Props {
     filter: Filter;
     filtered: boolean;
+    onTraceIdClick: (traceId: string) => void;
 }
 
 function Extraction(props: Props) {
     const {
         filter,
         filtered,
+        onTraceIdClick,
     } = props;
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [isRetriggerBannerVisible, setIsRetriggerBannerVisible] = useState(false);
@@ -331,6 +325,16 @@ function Extraction(props: Props) {
 
     const extractionDataBySource = extractionsResponse?.statusSourceCountsExtraction;
 
+    const [trendMode, setTrendMode] = useState<TrendMode>('daily');
+    const dailyTrendData = useMemo(
+        () => pivotTrendByDate(extractionsResponse?.extractionTrend),
+        [extractionsResponse?.extractionTrend],
+    );
+    const snapshotTrendData = useMemo(
+        () => pivotSnapshotTrend(extractionsResponse?.statusSnapshotTrend),
+        [extractionsResponse?.statusSnapshotTrend],
+    );
+
     const columns = useMemo(
         () => ([
             createElementColumn<ExtractionDataItemType, string, CheckboxProps<string>>(
@@ -420,10 +424,14 @@ function Extraction(props: Props) {
                 'Parent Id',
                 (item) => item.parentId,
             ),
-            createStringColumn<ExtractionDataItemType, string>(
+            createElementColumn<ExtractionDataItemType, string, TraceIdLinkProps>(
                 'traceId',
                 'Trace Id',
-                (item) => item.traceId,
+                TraceIdLink,
+                (_, item) => ({
+                    traceId: item.traceId,
+                    onClick: onTraceIdClick,
+                }),
                 {
                     sortable: true,
                     columnClassName: styles.revisionId,
@@ -450,6 +458,7 @@ function Extraction(props: Props) {
             handleCheckboxChange,
             sourceOptions,
             statusOptions,
+            onTraceIdClick,
         ],
     );
 
@@ -457,10 +466,10 @@ function Extraction(props: Props) {
 
     const heading = useMemo(() => (
         resolveToString(
-            'All Extraction ({totalCount})',
+            'All Extraction items ({totalCount})',
             {
                 totalCount: isDefined(extractionsResponse?.extractions?.totalCount)
-                    ? extractionsResponse?.extractions?.totalCount
+                    ? extractionsResponse.extractions.totalCount.toLocaleString()
                     : 0,
             },
         )
@@ -474,21 +483,23 @@ function Extraction(props: Props) {
             <div className={styles.figure}>
                 <div className={styles.keyFigures}>
                     <KeyFigure
-                        // FIXME: Fix this after this is no longer array from sever
-                        value={extractionsResponse?.statusCountExtraction[0]?.successCount}
+                        value={extractionsResponse?.statusCountExtraction?.successCount}
                         label="Total Extractions Succeeded"
                         className={styles.keyFigureItem}
                     />
                     <KeyFigure
-                        // FIXME: Fix this after this is no longer array from sever
-                        value={extractionsResponse?.statusCountExtraction[0]?.failedCount}
+                        value={extractionsResponse?.statusCountExtraction?.failedCount}
                         label="Total Extractions Failed"
                         className={styles.keyFigureItem}
                     />
                     <KeyFigure
-                        // FIXME: Fix this after this is no longer array from sever
-                        value={extractionsResponse?.statusCountExtraction[0]?.pendingCount}
+                        value={extractionsResponse?.statusCountExtraction?.pendingCount}
                         label="Total Extractions Pending"
+                        className={styles.keyFigureItem}
+                    />
+                    <KeyFigure
+                        value={extractionsResponse?.retriedExtractionsCount}
+                        label="Retried (last 24h)"
                         className={styles.keyFigureItem}
                     />
                 </div>
@@ -507,17 +518,24 @@ function Extraction(props: Props) {
                     >
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="source" />
-                        <YAxis />
-                        <Tooltip />
+                        <YAxis tickFormatter={(value: number) => value.toLocaleString()} />
+                        <Tooltip formatter={(value) => (typeof value === 'number' ? value.toLocaleString() : value)} />
                         <Legend />
-                        <Bar dataKey="failedCount" stackId="a" fill="#F75C65" />
-                        <Bar dataKey="inProgressCount" stackId="a" fill="#d9b100" />
-                        <Bar dataKey="pendingCount" stackId="a" fill="#FF8000" />
-                        <Bar dataKey="successCount" stackId="a" fill="#7FB845" />
-                        <Bar dataKey="onRetryCount" stackId="a" fill="#8648B3" />
+                        <Bar dataKey="failedCount" name="Failed" stackId="a" fill="#D03B3B" />
+                        <Bar dataKey="inProgressCount" name="In progress" stackId="a" fill="#2A78D6" />
+                        <Bar dataKey="pendingCount" name="Pending" stackId="a" fill="#FAB219" />
+                        <Bar dataKey="successCount" name="Success" stackId="a" fill="#0CA30C" />
+                        <Bar dataKey="onRetryCount" name="On Retry" stackId="a" fill="#4A3AA7" />
                     </BarChart>
                 </ResponsiveContainer>
             </div>
+            <TrendChart
+                heading="Extraction trend"
+                mode={trendMode}
+                onModeChange={setTrendMode}
+                data={trendMode === 'daily' ? dailyTrendData : snapshotTrendData}
+                statusKeys={['FAILED', 'IN_PROGRESS', 'PENDING', 'SUCCESS', 'ON_RETRY']}
+            />
             <Container
                 heading={heading}
                 withHeaderBorder

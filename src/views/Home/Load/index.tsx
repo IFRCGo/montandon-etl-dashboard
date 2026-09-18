@@ -37,6 +37,8 @@ import {
 
 import Page from '#components/Page';
 import StatusTag, { type Props as StatusTagProps } from '#components/StatusTag';
+import TraceIdLink, { type Props as TraceIdLinkProps } from '#components/TraceIdLink';
+import TrendChart, { type TrendMode } from '#components/TrendChart';
 import {
     type FilterEnumsQuery,
     type IdBaseFilterLookup,
@@ -49,6 +51,10 @@ import {
 import useFilterState from '#hooks/useFilterState';
 import getEnumLabelFromValue from '#utils/common';
 import { FILTER_ENUMS } from '#utils/queries';
+import {
+    pivotSnapshotTrend,
+    pivotTrendByDate,
+} from '#utils/trend';
 
 import styles from './styles.module.css';
 
@@ -89,6 +95,16 @@ const LOADS = gql`
             uniqueHazardCount
             uniqueImpactCount
         }
+        pystacTrend(days: 30) {
+            date
+            status
+            count
+        }
+        statusSnapshotTrend(resourceType: PYSTAC, days: 7) {
+            createdAt
+            status
+            count
+        }
     }
 `;
 
@@ -112,12 +128,14 @@ interface Filter {
 interface Props {
     filter: Filter;
     filtered: boolean;
+    onTraceIdClick: (traceId: string) => void;
 }
 
 function Load(props: Props) {
     const {
         filter,
         filtered,
+        onTraceIdClick,
     } = props;
 
     const [page, setPage] = useState<number>(1);
@@ -204,6 +222,16 @@ function Load(props: Props) {
 
     const pyStacStatusData = loadResponse?.statusSourceCountsPystac;
 
+    const [trendMode, setTrendMode] = useState<TrendMode>('daily');
+    const dailyTrendData = useMemo(
+        () => pivotTrendByDate(loadResponse?.pystacTrend),
+        [loadResponse?.pystacTrend],
+    );
+    const snapshotTrendData = useMemo(
+        () => pivotSnapshotTrend(loadResponse?.statusSnapshotTrend),
+        [loadResponse?.statusSnapshotTrend],
+    );
+
     const sourceOptions = filterEnumsResponse?.enums?.ExtractionDataSource;
     const statusOptions = filterEnumsResponse?.enums?.PyStacLoadDataStatus;
     const itemTypeOptions = filterEnumsResponse?.enums?.PyStacLoadDataItemType;
@@ -276,10 +304,14 @@ function Load(props: Props) {
                     sortable: true,
                 },
             ),
-            createStringColumn<LoadDataItemType, string>(
+            createElementColumn<LoadDataItemType, string, TraceIdLinkProps>(
                 'traceId',
                 'Trace Id',
-                (item) => item.traceId,
+                TraceIdLink,
+                (_, item) => ({
+                    traceId: item.traceId,
+                    onClick: onTraceIdClick,
+                }),
                 {
                     sortable: true,
                 },
@@ -297,6 +329,7 @@ function Load(props: Props) {
             sourceOptions,
             itemTypeOptions,
             statusOptions,
+            onTraceIdClick,
         ],
     );
 
@@ -304,10 +337,10 @@ function Load(props: Props) {
 
     const heading = useMemo(() => (
         resolveToString(
-            'All Load ({totalCount})',
+            'All Load items ({totalCount})',
             {
                 totalCount: isDefined(loadResponse?.pystacs?.totalCount)
-                    ? loadResponse?.pystacs?.totalCount
+                    ? loadResponse.pystacs.totalCount.toLocaleString()
                     : 0,
             },
         )
@@ -351,15 +384,22 @@ function Load(props: Props) {
                     >
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="source" />
-                        <YAxis />
-                        <Tooltip />
+                        <YAxis tickFormatter={(value: number) => value.toLocaleString()} />
+                        <Tooltip formatter={(value) => (typeof value === 'number' ? value.toLocaleString() : value)} />
                         <Legend />
-                        <Bar dataKey="failedCount" stackId="a" fill="#F75C65" />
-                        <Bar dataKey="pendingCount" stackId="a" fill="#FF8000" />
-                        <Bar dataKey="successCount" stackId="a" fill="#7FB845" />
+                        <Bar dataKey="failedCount" name="Failed" stackId="a" fill="#D03B3B" />
+                        <Bar dataKey="pendingCount" name="Pending" stackId="a" fill="#FAB219" />
+                        <Bar dataKey="successCount" name="Success" stackId="a" fill="#0CA30C" />
                     </BarChart>
                 </ResponsiveContainer>
             </div>
+            <TrendChart
+                heading="Load trend"
+                mode={trendMode}
+                onModeChange={setTrendMode}
+                data={trendMode === 'daily' ? dailyTrendData : snapshotTrendData}
+                statusKeys={['FAILED', 'PENDING', 'SUCCESS']}
+            />
             <Container
                 heading={heading}
                 withHeaderBorder

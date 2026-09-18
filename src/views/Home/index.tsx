@@ -1,4 +1,7 @@
-import { useState } from 'react';
+import {
+    useCallback,
+    useState,
+} from 'react';
 import {
     Container,
     Tab,
@@ -28,7 +31,6 @@ import styles from './styles.module.css';
 
 const PAGE_SIZE = 20;
 
-/** @knipignore */
 // eslint-disable-next-line import/prefer-default-export
 export function Component() {
     const [
@@ -53,6 +55,14 @@ export function Component() {
         filter: {},
         pageSize: PAGE_SIZE,
     });
+
+    const handleTraceIdClick = useCallback(
+        (traceId: string) => {
+            setFilterField(traceId, 'traceId');
+            setActiveTab('extraction');
+        },
+        [setFilterField],
+    );
 
     return (
         <>
@@ -96,6 +106,7 @@ export function Component() {
                         <Extraction
                             filter={rawFilter}
                             filtered={filtered}
+                            onTraceIdClick={handleTraceIdClick}
                         />
                     </TabPanel>
                     <TabPanel
@@ -104,6 +115,7 @@ export function Component() {
                         <Transformation
                             filter={rawFilter}
                             filtered={filtered}
+                            onTraceIdClick={handleTraceIdClick}
                         />
                     </TabPanel>
                     <TabPanel
@@ -112,6 +124,7 @@ export function Component() {
                         <Load
                             filter={rawFilter}
                             filtered={filtered}
+                            onTraceIdClick={handleTraceIdClick}
                         />
                     </TabPanel>
 

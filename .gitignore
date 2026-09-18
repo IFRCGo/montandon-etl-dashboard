@@ -29,5 +29,6 @@ build-ssr
 
 .env*
 .eslintcache
+.vite*
 tsconfig.tsbuildinfo
 vite.config.ts*
