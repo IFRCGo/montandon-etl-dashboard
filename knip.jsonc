@@ -6,12 +6,9 @@
     },
     "entry": [
         "generated/**/*.ts",
-        "src/**/*.test.ts",
-        "src/**/*.test.tsx",
-        "src/index.tsx!"
+        "src/**/*.test.tsx"
     ],
     "ignoreDependencies": [
-        "@graphql-typed-document-node/core",
         "@vitejs/plugin-react-swc",
         "vite-plugin-checker",
         "vite-plugin-compression2",
@@ -20,10 +17,8 @@
     ],
     "project": [
         "src/**/*.d.ts",
-        "src/**/*.test.ts",
         "src/**/*.test.tsx",
         "src/**/*.tsx!",
-        "src/**/*.ts!",
-        "generated/**/*.ts"
+        "src/**/*.ts!"
     ]
 }

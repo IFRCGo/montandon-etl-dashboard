@@ -31,7 +31,6 @@ import styles from './styles.module.css';
 
 const PAGE_SIZE = 20;
 
-/** @knipignore */
 // eslint-disable-next-line import/prefer-default-export
 export function Component() {
     const [

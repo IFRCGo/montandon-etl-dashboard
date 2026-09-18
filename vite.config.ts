@@ -53,6 +53,9 @@ export default defineConfig(({ mode }) => {
         },
         test: {
             environment: 'happy-dom',
+            coverage: {
+                provider: 'v8',
+            },
         },
     };
 });
